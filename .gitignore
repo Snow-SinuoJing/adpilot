@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated at runtime
+data/assets/*
+!data/assets/.gitkeep
+data/media/*
+!data/media/.gitkeep
+data/cache/*
+!data/cache/.gitkeep
+data/projects/*
+!data/projects/.gitkeep
+data/replays/*
+!data/replays/.gitkeep
+.env
+.env.local
