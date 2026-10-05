@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import type { AdBrief } from "@/lib/state/schema";
 import { DEMO_BRIEF } from "@/lib/demo/demo-brief";
 import { PROJECT_STATUS_ZH, marketLabel } from "@/lib/i18n";
-import { IconFilm, IconImage, IconPlay, IconSparkles } from "./icons";
+import { BrandBar } from "./brand-bar";
+import { SetScene } from "./set-scene";
+import { IconPlay } from "./icons";
 
 const EMPTY_FORM = {
   productName: "",
@@ -20,8 +22,6 @@ const EMPTY_FORM = {
 };
 
 const ACTIVE_STATUSES = new Set(["IDLE", "PLANNING", "EXECUTING", "EVALUATING", "REPAIRING", "COMPOSING"]);
-/** 与「上传」徽章重复的标签，不在卡片上重复展示。 */
-const REDUNDANT_TAGS = new Set(["uploaded", "上传"]);
 
 interface HistoryItem {
   projectId: string;
@@ -33,6 +33,7 @@ interface HistoryItem {
   demoMode?: string;
 }
 
+/** 首页：一张通告单开拍新广告 + 往期广告片档案墙。 */
 export function BriefForm() {
   const router = useRouter();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -141,14 +142,14 @@ export function BriefForm() {
     refreshHistory();
   }, [refreshHistory]);
 
-  // 有进行中的项目时自动刷新历史，代替手动「刷新」按钮
+  // 有进行中的项目时自动刷新历史
   useEffect(() => {
     if (!history.some((h) => ACTIVE_STATUSES.has(h.status ?? ""))) return;
     const timer = setInterval(refreshHistory, 8000);
     return () => clearInterval(timer);
   }, [history, refreshHistory]);
 
-  // 从工作台「复制简报，新建重试」带回来的简报：直接预填
+  // 从工作台「复制通告单，重新开机」带回来的简报：直接预填
   useEffect(() => {
     const raw = sessionStorage.getItem("adpilot:retryBrief");
     if (!raw) return;
@@ -167,7 +168,7 @@ export function BriefForm() {
         language: brief.language ?? f.language,
         additionalRequirement: brief.additionalRequirement ?? f.additionalRequirement,
       }));
-      setRetryNote("已填入上次未完成的简报，确认内容后重新创建即可。");
+      setRetryNote("已填入上一场的通告单，确认内容后重新开机即可。");
     } catch {
       /* 预填数据损坏时忽略，按空白表单使用 */
     }
@@ -240,273 +241,273 @@ export function BriefForm() {
   const valid = form.productName && form.productDescription && form.market && form.audience;
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center gap-5 px-6 py-10">
-      <header className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-indigo-500 font-black text-white">A</span>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">AdPilot</h1>
-              <p className="text-sm text-zinc-400">自修复智能体广告工作室</p>
-            </div>
-          </div>
+    <div className="flex min-h-screen flex-col">
+      <BrandBar current="home" />
+
+      <section className="grid items-end gap-8 border-b-[3px] border-ink px-5 py-10 md:grid-cols-[1fr_340px] md:px-10">
+        <div>
+          <p className="mb-3.5 font-mono text-[11px] tracking-[0.34em] text-orange">CALL SHEET · 通告单</p>
+          <h1 className="text-4xl font-black leading-[1.06] md:text-[56px]">
+            一支新广告，
+            <br />
+            今天<span className="text-orange">开机</span>。
+          </h1>
+          <p className="mt-4 max-w-[560px] text-sm leading-[1.9] text-[#5c554a]">
+            发完这张<b className="text-ink">通告单</b>，<b className="text-ink">智能体剧组</b>接手余下全部：定三幕叙事、
+            从道具间取材或转 AI 摄影师生成、逐帧质检、不合格只重拍那一幕——最后交付一支竖版成片。
+          </p>
+        </div>
+        <div>
+          <SetScene />
           <a
-            href="/assets"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-zinc-500"
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              const first = replays[0];
+              if (first) void startReplay(first.name);
+            }}
+            className="mt-1 inline-block bg-ink px-6 py-3.5 text-[13px] font-extrabold tracking-[0.14em] text-paper transition-colors hover:bg-orange"
           >
-            <IconFilm className="size-3.5" />
-            素材库
+            先看一支示例片 →
           </a>
+          <p className="mt-2.5 text-[11px] tracking-[0.06em] text-grey">约 40 秒 · 含一次真实的自修复</p>
         </div>
-        <p className="text-sm leading-relaxed text-zinc-400">
-          提交一份广告简报，智能体团队会规划场景、决定每个画面用素材库还是 AI 生成、逐画面质检并自动修复，
-          最终产出可直接投放的竖版广告。不确定从哪开始？先
-          <button type="button" onClick={loadDemo} className="mx-1 text-indigo-300 underline decoration-indigo-500/40 underline-offset-2 hover:text-indigo-200">
-            加载演示简报
-          </button>
-          走一遍全流程。
-        </p>
-      </header>
+      </section>
 
-      <div className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold">广告简报</h2>
-          <button
-            type="button"
-            onClick={loadDemo}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20"
-          >
-            <IconSparkles className="size-3.5" />
-            加载演示简报
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="产品名称" className="sm:col-span-2">
-            <input className={inputClass} value={form.productName} onChange={(e) => set("productName", e.target.value)} placeholder="Tile Blitz" />
-          </Field>
-          <Field label="产品描述" className="sm:col-span-2">
-            <textarea className={inputClass} rows={3} value={form.productDescription} onChange={(e) => set("productDescription", e.target.value)} placeholder="超休闲磁砖消除游戏，60 秒一关，连击爽感十足…" />
-          </Field>
-          <Field label="投放市场">
-            <input className={inputClass} value={form.market} onChange={(e) => set("market", e.target.value)} placeholder="巴西" />
-          </Field>
-          <Field label="目标受众">
-            <input className={inputClass} value={form.audience} onChange={(e) => set("audience", e.target.value)} placeholder="18-34 岁休闲手游玩家" />
-          </Field>
-          <Field label="投放平台">
-            <select className={inputClass} value={form.platform} onChange={(e) => set("platform", e.target.value as AdBrief["platform"])}>
-              <option>TikTok</option>
-              <option>Reels</option>
-              <option>Shorts</option>
-            </select>
-          </Field>
-          <Field label="总时长">
-            <select className={inputClass} value={form.durationSec} onChange={(e) => set("durationSec", Number(e.target.value) as AdBrief["durationSec"])}>
-              <option value={15}>15 秒</option>
-              <option value={20}>20 秒</option>
-            </select>
-          </Field>
-          <Field label="配音语言">
-            <select
-              className={inputClass}
-              value={form.language}
-              onChange={(e) => set("language", e.target.value as NonNullable<AdBrief["language"]>)}
+      <div className="mx-auto w-full max-w-3xl px-5 py-10 md:px-0">
+        <div className="border-[3px] border-ink bg-white/50">
+          <div className="flex items-center justify-between border-b-2 border-ink px-7 py-4">
+            <h2 className="text-[13px] font-black tracking-[0.3em]">通告单 · CALL SHEET</h2>
+            <button
+              type="button"
+              onClick={loadDemo}
+              className="font-mono text-[11px] tracking-[0.14em] text-orange underline decoration-orange underline-offset-4 hover:no-underline"
             >
-              <option value="zh">中文普通话</option>
-              <option value="yue">粤语</option>
-              <option value="en">英语</option>
-              <option value="pt">葡萄牙语</option>
-              <option value="es">西班牙语</option>
-            </select>
-          </Field>
-          <Field label="画幅" className="sm:col-span-2">
-            <select
-              className={inputClass}
-              value={form.aspectRatio}
-              onChange={(e) => set("aspectRatio", e.target.value as NonNullable<AdBrief["aspectRatio"]>)}
-            >
-              <option value="9:16">竖屏 9:16（手机信息流）</option>
-              <option value="16:9">横屏 16:9（PC / 电视）</option>
-            </select>
-          </Field>
-          <Field label="附加要求（可选）" className="sm:col-span-2">
-            <input className={inputClass} value={form.additionalRequirement} onChange={(e) => set("additionalRequirement", e.target.value)} placeholder="强调连击爽感；色彩鲜艳，契合巴西审美" />
-          </Field>
-        </div>
+              套用示例通告 ↗
+            </button>
+          </div>
 
-        <details className="group rounded-xl border border-zinc-800 bg-zinc-950/40 open:pb-4">
-          <summary className="flex cursor-pointer select-none items-center justify-between px-4 py-3 text-sm font-medium text-zinc-300 [&::-webkit-details-marker]:hidden">
-            <span>高级选项</span>
-            <span className="text-xs text-zinc-500 group-open:hidden">素材与参考图 · 可选</span>
-          </summary>
-          <div className="grid grid-cols-1 gap-3 px-4 sm:grid-cols-2">
-            <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-              <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-300">
-                <IconFilm className="size-3.5 text-zinc-400" />
-                本次相关素材
-              </p>
-              <p className="text-[11px] leading-relaxed text-zinc-500">
-                上传本产品的视频素材：自动识别、切片、打标入素材库，并在这次计划中优先检索
-              </p>
-              <button
-                type="button"
-                onClick={() => clipInput.current?.click()}
-                disabled={clipInputBusy}
-                className="w-full rounded-lg border border-dashed border-zinc-600 py-2 text-xs text-zinc-300 hover:border-indigo-500 hover:text-indigo-300 disabled:opacity-50"
-              >
-                {clipInputBusy ? "上传处理中…" : "＋ 上传视频素材"}
-              </button>
-              <input ref={clipInput} type="file" accept="video/*" multiple hidden onChange={(e) => void uploadClips(e.target.files)} />
-              {uploadNote && <p className="text-[11px] text-emerald-300">{uploadNote}</p>}
-              {analysisStatus.length > 0 && (
-                <div className="space-y-1">
-                  {analysisStatus.map((s) => (
-                    <p key={s.id} className={`flex items-center gap-1.5 text-[11px] ${s.pending ? "text-amber-300" : "text-emerald-300"}`}>
-                      {s.pending ? (
-                        <span className="animate-pulse">{s.label} · 镜头拆分/视觉描述中…</span>
-                      ) : (
-                        <span>{s.label} · 已解析{s.segs > 0 ? ` ${s.segs} 段切片` : ""}</span>
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 px-7 py-8 sm:grid-cols-2">
+            <Field label="产品名称" className="sm:col-span-2">
+              <input className="sheet-input" value={form.productName} onChange={(e) => set("productName", e.target.value)} placeholder="Tile Blitz" />
+            </Field>
+            <Field label="产品描述" className="sm:col-span-2">
+              <textarea className="sheet-textarea" rows={3} value={form.productDescription} onChange={(e) => set("productDescription", e.target.value)} placeholder="超休闲磁砖消除游戏，60 秒一关，连击爽感十足…" />
+            </Field>
+            <Field label="投放市场">
+              <input className="sheet-input" value={form.market} onChange={(e) => set("market", e.target.value)} placeholder="巴西" />
+            </Field>
+            <Field label="目标受众">
+              <input className="sheet-input" value={form.audience} onChange={(e) => set("audience", e.target.value)} placeholder="18–34 岁休闲手游玩家" />
+            </Field>
+            <Field label="投放平台">
+              <select className="sheet-select" value={form.platform} onChange={(e) => set("platform", e.target.value as AdBrief["platform"])}>
+                <option>TikTok</option>
+                <option>Reels</option>
+                <option>Shorts</option>
+              </select>
+            </Field>
+            <Field label="总时长">
+              <select className="sheet-select" value={form.durationSec} onChange={(e) => set("durationSec", Number(e.target.value) as AdBrief["durationSec"])}>
+                <option value={15}>15 秒</option>
+                <option value={20}>20 秒</option>
+              </select>
+            </Field>
+            <Field label="配音语言">
+              <select className="sheet-select" value={form.language} onChange={(e) => set("language", e.target.value as NonNullable<AdBrief["language"]>)}>
+                <option value="zh">中文普通话</option>
+                <option value="yue">粤语</option>
+                <option value="en">英语</option>
+                <option value="pt">葡萄牙语</option>
+                <option value="es">西班牙语</option>
+              </select>
+            </Field>
+            <Field label="画幅">
+              <select className="sheet-select" value={form.aspectRatio} onChange={(e) => set("aspectRatio", e.target.value as NonNullable<AdBrief["aspectRatio"]>)}>
+                <option value="9:16">竖屏 9:16 · 手机信息流</option>
+                <option value="16:9">横屏 16:9 · PC / 电视</option>
+              </select>
+            </Field>
+            <Field label="附加要求 · 可选" className="sm:col-span-2">
+              <input className="sheet-input" value={form.additionalRequirement} onChange={(e) => set("additionalRequirement", e.target.value)} placeholder="强调连击爽感；色彩鲜艳，契合巴西审美" />
+            </Field>
+
+            <details className="group col-span-full border border-dashed border-ink/40 open:pb-6">
+              <summary className="flex cursor-pointer select-none items-center justify-between px-5 py-3.5 text-sm font-bold text-ink [&::-webkit-details-marker]:hidden">
+                <span>附录 · 道具与参考图</span>
+                <span className="text-xs font-normal tracking-[0.1em] text-grey group-open:hidden">可选 · 本产品的视频素材与产品图</span>
+                <span className="hidden text-xs font-normal tracking-[0.1em] text-grey group-open:inline">收起附录</span>
+              </summary>
+              <div className="grid grid-cols-1 gap-4 px-5 sm:grid-cols-2">
+                <div className="space-y-2 border border-ink/20 bg-white/40 p-4">
+                  <p className="text-xs font-extrabold tracking-[0.2em] text-ink">上传本产品视频素材</p>
+                  <p className="text-[11px] leading-relaxed text-grey">自动镜头拆分与视觉描述，本轮计划优先检索</p>
+                  <button
+                    type="button"
+                    onClick={() => clipInput.current?.click()}
+                    disabled={clipInputBusy}
+                    className="w-full border border-dashed border-ink/40 py-2 text-xs font-bold text-ink transition-colors hover:border-orange hover:text-orange disabled:opacity-50"
+                  >
+                    {clipInputBusy ? "上传处理中…" : "＋ 上传视频素材"}
+                  </button>
+                  <input ref={clipInput} type="file" accept="video/*" multiple hidden onChange={(e) => void uploadClips(e.target.files)} />
+                  {uploadNote && <p className="text-[11px] leading-relaxed text-[#2e6b46]">{uploadNote}</p>}
+                  {analysisStatus.length > 0 && (
+                    <div className="space-y-1">
+                      {analysisStatus.map((s) => (
+                        <p key={s.id} className={`text-[11px] leading-relaxed ${s.pending ? "text-orange" : "text-[#2e6b46]"}`}>
+                          {s.pending ? (
+                            <span className="animate-pulse">{s.label} · 镜头拆分/视觉描述中…</span>
+                          ) : (
+                            <span>{s.label} · 已解析{s.segs > 0 ? ` ${s.segs} 段切片` : ""}</span>
+                          )}
+                        </p>
+                      ))}
+                      {analysisPending && (
+                        <p className="text-[11px] text-orange/90">建议等解析完成再开机，否则可能检索不到这些素材的切片</p>
                       )}
-                    </p>
-                  ))}
-                  {analysisPending && (
-                    <p className="text-[11px] text-amber-400/90">
-                      建议等解析完成再生成，否则可能检索不到这些素材的切片
-                    </p>
+                    </div>
+                  )}
+                  {priorityIds.length > 0 && (
+                    <button type="button" onClick={() => setPriorityIds([])} className="text-[11px] text-grey hover:text-ink">
+                      清除优先（已选 {priorityIds.length} 个）
+                    </button>
                   )}
                 </div>
-              )}
-              {priorityIds.length > 0 && (
-                <button type="button" onClick={() => setPriorityIds([])} className="text-[11px] text-zinc-500 hover:text-zinc-300">
-                  清除优先（已选 {priorityIds.length} 个）
-                </button>
-              )}
-            </div>
-            <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-              <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-300">
-                <IconImage className="size-3.5 text-zinc-400" />
-                产品参考图
-              </p>
-              <p className="text-[11px] leading-relaxed text-zinc-500">
-                上传产品图后，AI 生成会参考真实产品外观（实测相似度约 80 分）
-              </p>
-              {referenceImage ? (
-                <div className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={referenceImage} alt="产品参考图" className="size-20 rounded-lg border border-zinc-700 object-cover" />
-                  <button type="button" onClick={() => setReferenceImage(null)} className="text-[11px] text-red-300 hover:underline">
-                    移除
-                  </button>
+                <div className="space-y-2 border border-ink/20 bg-white/40 p-4">
+                  <p className="text-xs font-extrabold tracking-[0.2em] text-ink">上传产品参考图</p>
+                  <p className="text-[11px] leading-relaxed text-grey">AI 生成将参考真实产品外观（实测相似度约 80 分）</p>
+                  {referenceImage ? (
+                    <div className="flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={referenceImage} alt="产品参考图" className="h-20 w-20 border border-ink/30 object-cover" />
+                      <button type="button" onClick={() => setReferenceImage(null)} className="text-[11px] text-orange hover:underline">
+                        移除
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => refInput.current?.click()}
+                      disabled={refBusy}
+                      className="w-full border border-dashed border-ink/40 py-2 text-xs font-bold text-ink transition-colors hover:border-orange hover:text-orange disabled:opacity-50"
+                    >
+                      {refBusy ? "上传中…" : "＋ 上传产品图（jpg / png）"}
+                    </button>
+                  )}
+                  <input ref={refInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => void uploadReference(e.target.files?.[0] ?? null)} />
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => refInput.current?.click()}
-                  disabled={refBusy}
-                  className="w-full rounded-lg border border-dashed border-zinc-600 py-2 text-xs text-zinc-300 hover:border-indigo-500 hover:text-indigo-300 disabled:opacity-50"
-                >
-                  {refBusy ? "上传中…" : "＋ 上传产品图（jpg / png）"}
-                </button>
-              )}
-              <input ref={refInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => void uploadReference(e.target.files?.[0] ?? null)} />
+              </div>
+            </details>
+
+            {retryNote && (
+              <p className="col-span-full border border-orange/40 bg-orange/10 px-3 py-2 text-xs text-[#a03a00]">{retryNote}</p>
+            )}
+            {error && (
+              <p className="col-span-full border-2 border-[#c22b00] bg-[#c22b00]/10 px-3 py-2 text-sm font-bold text-[#c22b00]">{error}</p>
+            )}
+
+            <div className="col-span-full flex flex-wrap items-center gap-5">
+              <button
+                type="button"
+                disabled={!valid || loading}
+                onClick={submit}
+                className="bg-ink px-9 py-4 text-[15px] font-black tracking-[0.22em] text-paper transition-colors hover:bg-orange disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {loading ? "开机中…" : "开机 · 创建广告计划 →"}
+              </button>
+              <p className="text-[11.5px] leading-[1.8] text-grey">
+                提交后剧组即刻开工，全程场记可回看。
+                <br />
+                平均 <b className="text-orange">40 秒</b> 交付首支成片。
+              </p>
             </div>
+
+            {replays.length > 0 && (
+              <div className="col-span-full flex flex-wrap items-center gap-3.5 border-t border-ink/20 pt-5">
+                <span className="font-mono text-[10px] tracking-[0.26em] text-grey">REFERENCE · 示例片</span>
+                {replays.map((replay) => (
+                  <button
+                    key={replay.name}
+                    type="button"
+                    onClick={() => void startReplay(replay.name)}
+                    className="inline-flex items-center gap-1.5 border-[1.5px] border-ink px-3.5 py-2 text-xs font-bold transition-colors hover:border-orange hover:text-orange"
+                  >
+                    <IconPlay className="size-3" />
+                    {replay.name}
+                    {replay.product ? ` · ${replay.product}` : ""}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </details>
-
-        {retryNote && (
-          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{retryNote}</p>
-        )}
-        {error && (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>
-        )}
-
-        <div className="sticky bottom-3 z-10 sm:static">
-          <button
-            type="button"
-            disabled={!valid || loading}
-            onClick={submit}
-            className="w-full rounded-xl bg-indigo-500 py-2.5 font-semibold text-white shadow-lg shadow-black/50 transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40 sm:shadow-none"
-          >
-            {loading ? "创建中…" : "创建广告计划"}
-          </button>
         </div>
 
-        {replays.length > 0 && (
-          <div className="border-t border-zinc-800 pt-3">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-600">
-              示例项目 · 一键回放完整运行
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {replays.map((replay) => (
+        {history.length > 0 && (
+          <section id="archive" className="mt-16 scroll-mt-20">
+            <div className="mb-5 flex items-baseline justify-between border-b-[3px] border-ink pb-3">
+              <h2 className="text-xl font-black tracking-[0.04em]">
+                往期广告片
+                <small className="ml-3.5 font-mono text-[10px] font-normal tracking-[0.3em] text-grey">FILMOGRAPHY · 交付存档</small>
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
+              {history.map((item) => (
                 <button
-                  key={replay.name}
+                  key={item.projectId}
                   type="button"
-                  onClick={() => void startReplay(replay.name)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300 transition hover:bg-amber-500/20"
+                  onClick={() => router.push(`/project/${item.projectId}`)}
+                  className="propcard flex flex-col border border-ink/25 bg-white/45 text-left"
                 >
-                  <IconPlay className="size-3" />
-                  {replay.name}
-                  {replay.product ? ` · ${replay.product}` : ""}
+                  {item.hasFinal ? (
+                    <video
+                      src={`/api/media/${item.projectId}/final.mp4#t=0.5`}
+                      preload="metadata"
+                      muted
+                      playsInline
+                      className="aspect-video w-full border-b border-ink/25 bg-black object-cover"
+                    />
+                  ) : (
+                    <div className="grid aspect-video w-full place-items-center border-b border-ink/25 bg-paper font-mono text-[10px] tracking-[0.2em] text-grey">
+                      无成片
+                    </div>
+                  )}
+                  <span className="block p-3">
+                    <span className="block truncate text-[13.5px] font-extrabold">{item.product ?? item.projectId}</span>
+                    <span className="mt-1 block truncate font-mono text-[10px] tracking-[0.08em] text-grey">
+                      {marketLabel(item.market)} · {item.createdAt?.slice(5, 16).replace("T", " ") ?? ""}
+                      {item.demoMode === "replay" ? " · 回放" : ""}
+                    </span>
+                    <span
+                      className={`mt-1.5 inline-block px-2 py-0.5 text-[10px] font-black tracking-[0.12em] ${
+                        item.status === "COMPLETED"
+                          ? "bg-ink text-paper"
+                          : item.status === "FAILED"
+                            ? "border-[1.5px] border-orange text-orange"
+                            : "bg-ink/10 text-ink"
+                      }`}
+                    >
+                      {PROJECT_STATUS_ZH[item.status as keyof typeof PROJECT_STATUS_ZH] ?? item.status}
+                    </span>
+                  </span>
                 </button>
               ))}
             </div>
-          </div>
+          </section>
         )}
       </div>
 
-      {history.length > 0 && (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-300">历史项目</h2>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {history.map((item) => (
-              <button
-                key={item.projectId}
-                type="button"
-                onClick={() => router.push(`/project/${item.projectId}`)}
-                className="flex flex-col items-stretch justify-start overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/60 text-left transition hover:border-zinc-600"
-              >
-                {item.hasFinal && (
-                  <video
-                    src={`/api/media/${item.projectId}/final.mp4#t=0.5`}
-                    preload="metadata"
-                    muted
-                    playsInline
-                    className="aspect-video w-full border-b border-zinc-800 bg-black object-cover"
-                  />
-                )}
-                <div className="p-3">
-                  <p className="truncate text-sm font-medium text-zinc-200">{item.product ?? item.projectId}</p>
-                  <p className="mt-0.5 truncate text-[11px] text-zinc-500">
-                    {marketLabel(item.market)} · {item.createdAt?.slice(5, 16).replace("T", " ") ?? ""}
-                    {item.demoMode === "replay" ? " · 回放" : ""}
-                  </p>
-                  <span className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass(item.status)}`}>
-                    {PROJECT_STATUS_ZH[item.status as keyof typeof PROJECT_STATUS_ZH] ?? item.status}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      <footer className="mt-auto border-t-2 border-ink px-5 py-3.5 md:px-10">
+        <p className="font-mono text-[10px] tracking-[0.22em] text-grey">ADPILOT · 通告单</p>
+      </footer>
     </div>
   );
 }
 
-function statusClass(status?: string): string {
-  if (status === "COMPLETED") return "bg-emerald-500/15 text-emerald-300";
-  if (status === "FAILED") return "bg-red-500/15 text-red-300";
-  return "bg-zinc-800 text-zinc-400";
-}
-
-const inputClass =
-  "w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none";
-
 function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
   return (
-    <label className={`flex flex-col gap-1.5 text-xs font-medium text-zinc-400 ${className ?? ""}`}>
-      {label}
+    <label className={`flex flex-col gap-2 ${className ?? ""}`}>
+      <span className="text-[10.5px] font-extrabold tracking-[0.26em] text-grey">{label}</span>
       {children}
     </label>
   );

@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { BrandBar } from "@/components/brand-bar";
+import { CharacterPropMaster } from "@/components/crew";
 import { formatDuration } from "@/lib/i18n";
-import { IconArrowLeft, IconFilm, IconPlus } from "@/components/icons";
 
 interface AssetEntry {
   id: string;
@@ -20,9 +20,10 @@ interface AssetEntry {
   url: string;
 }
 
-/** 与「上传」徽章重复的标签，不在卡片上重复展示。 */
+/** 与「上传」来源章重复的标签，不在卡片上重复展示。 */
 const REDUNDANT_TAGS = new Set(["uploaded", "上传"]);
 
+/** 道具间：素材是片场的道具，每条是一张印刷档案卡。 */
 export default function AssetsPage() {
   const [assets, setAssets] = useState<AssetEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,8 +70,8 @@ export default function AssetsPage() {
         kind: "ok",
         text:
           body.analyzing > 0
-            ? `已上传 ${body.added.length} 个素材，其中 ${body.analyzing} 个长素材正在后台做镜头拆分与视觉描述（完成后自动刷新）`
-            : `已上传 ${body.added.length} 个素材（入库总数 ${body.total}）`,
+            ? `已入库 ${body.added.length} 件道具，其中 ${body.analyzing} 件正在后台做镜头拆分与视觉描述（完成后自动刷新）`
+            : `已入库 ${body.added.length} 件道具（道具间总数 ${body.total}）`,
       });
       await refresh();
     } catch (e) {
@@ -85,10 +86,10 @@ export default function AssetsPage() {
     const response = await fetch(`/api/assets/${id}`, { method: "POST" });
     const body = await response.json();
     if (response.ok) {
-      setMessage({ kind: "ok", text: "分析已启动：镜头检测 → 切片 → 视觉描述（约几十秒，自动刷新）" });
+      setMessage({ kind: "ok", text: "拆分已启动：镜头检测 → 切片 → 视觉描述（约几十秒，自动刷新）" });
       await refresh();
     } else {
-      setMessage({ kind: "err", text: body.error ?? "启动分析失败" });
+      setMessage({ kind: "err", text: body.error ?? "启动拆分失败" });
     }
   };
 
@@ -101,7 +102,7 @@ export default function AssetsPage() {
     });
     if (response.ok) {
       setEditing(null);
-      setMessage({ kind: "ok", text: "素材信息已更新（标签直接影响检索匹配）" });
+      setMessage({ kind: "ok", text: "道具卡片已更新（标签直接影响检索匹配）" });
       await refresh();
     } else {
       setMessage({ kind: "err", text: "更新失败" });
@@ -109,7 +110,7 @@ export default function AssetsPage() {
   };
 
   const remove = async (id: string) => {
-    if (!confirm(`确定删除素材 ${id}？其子切片会一并删除，历史项目不受影响。`)) return;
+    if (!confirm(`确定删除道具 ${id}？其子切片会一并删除，往期广告片不受影响。`)) return;
     const response = await fetch(`/api/assets/${id}`, { method: "DELETE" });
     if (response.ok) {
       setMessage({ kind: "ok", text: `已删除 ${id}` });
@@ -119,115 +120,127 @@ export default function AssetsPage() {
 
   const parents = assets.filter((a) => !a.parentFile);
   const childrenOf = (file: string) => assets.filter((a) => a.parentFile === file);
+  const builtinCount = parents.filter((a) => a.origin !== "upload").length;
+  const uploadCount = parents.length - builtinCount;
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-6xl px-6 py-8">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="grid size-9 place-items-center rounded-lg bg-indigo-500 font-black text-white">A</Link>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">素材库</h1>
-            <p className="text-xs text-zinc-400">
-              上传后长素材会自动做「镜头检测 → 切片 → 视觉描述」，切片直接参与 Agent 检索匹配
-            </p>
-          </div>
+    <div className="flex min-h-screen flex-col">
+      <BrandBar current="assets" />
+
+      <section className="grid items-end gap-8 border-b-[3px] border-ink px-5 py-9 md:grid-cols-[1fr_auto] md:px-10">
+        <div>
+          <p className="mb-3 font-mono text-[11px] tracking-[0.34em] text-orange">PROP ROOM · 道具间</p>
+          <h1 className="text-4xl font-black leading-[1.05] md:text-5xl">
+            道具间<span className="text-orange">。</span>
+          </h1>
+          <p className="mt-3 max-w-[620px] text-[13.5px] leading-[1.85] text-[#5c554a]">
+            素材是片场的道具：<b className="text-ink">上传后自动镜头拆分与视觉描述</b>，
+            切片直接参与剧组的检索匹配——开机时道具越全，成片越快。
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/" className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:border-zinc-500">
-            <IconArrowLeft className="size-3.5" />
-            返回首页
-          </Link>
+        <div className="text-right">
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
             disabled={uploading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-400 disabled:opacity-50"
+            className="bg-ink px-7 py-3.5 text-[13px] font-black tracking-[0.18em] text-paper transition-colors hover:bg-orange disabled:opacity-50"
           >
-            <IconPlus className="size-3.5" />
-            {uploading ? "上传处理中…" : "上传视频素材"}
+            {uploading ? "入库处理中…" : "＋ 入库视频道具"}
           </button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="video/mp4,video/quicktime,video/webm,video/*"
-            multiple
-            hidden
-            onChange={(e) => void upload(e.target.files)}
-          />
+          <p className="mt-2.5 font-mono text-[10px] tracking-[0.12em] text-grey">支持 mp4 / mov / webm · 长素材自动切片</p>
         </div>
-      </header>
+      </section>
 
-      {message && (
-        <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${message.kind === "ok" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-red-500/30 bg-red-500/10 text-red-300"}`}>
-          {message.text}
-        </p>
-      )}
+      <div className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 md:px-10">
+        {message && (
+          <p className={`mb-5 border-2 px-3.5 py-2.5 text-sm font-bold ${message.kind === "ok" ? "border-[#2e6b46] bg-[#2e6b46]/10 text-[#2e6b46]" : "border-[#c22b00] bg-[#c22b00]/10 text-[#c22b00]"}`}>
+            {message.text}
+          </p>
+        )}
 
-      {loading ? (
-        <p className="text-sm text-zinc-500">加载中…</p>
-      ) : parents.length === 0 ? (
-        <div className="grid place-items-center rounded-2xl border border-dashed border-zinc-800 py-20 text-sm text-zinc-500">
-          素材库为空——点击「上传视频素材」或运行 <code className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5">npm run assets</code> 生成内置演示素材
+        <div className="mb-5 flex flex-wrap items-center gap-4">
+          <span className="font-mono text-[11px] tracking-[0.2em] text-grey">
+            共 <b className="text-ink">{parents.length}</b> 件 · 内置 {builtinCount} · 上传 {uploadCount}
+          </span>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {parents.map((asset) => {
-            const children = childrenOf(asset.file);
-            return (
-              <div key={asset.id} className="group flex flex-col">
-                <AssetCard
-                  asset={asset}
-                  segmentCount={children.length}
-                  expanded={expandedParent === asset.id}
-                  onToggle={() => setExpandedParent(expandedParent === asset.id ? null : asset.id)}
-                  editing={editing === asset.id}
-                  onEdit={() => setEditing(asset.id)}
-                  onCancel={() => setEditing(null)}
-                  onSave={(description, tags) => void saveEdit(asset.id, description, tags)}
-                  onDelete={() => void remove(asset.id)}
-                  onAnalyze={() => void analyze(asset.id)}
-                />
-                {expandedParent === asset.id && children.length > 0 && (
-                  <div className="mt-2 space-y-1.5 rounded-xl border border-zinc-800 bg-zinc-950/60 p-2">
-                    <p className="px-1 text-[10px] font-bold uppercase tracking-wider text-zinc-600">
-                      自动切片（{children.length} 段 · 时间戳 + 视觉描述）
-                    </p>
-                    {children.map((child) => (
-                      <div key={child.id} className="rounded-lg bg-zinc-900/80 p-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono text-[10px] text-amber-300">
-                            {child.id.replace(/^[^_]+_/, "")}
-                          </span>
-                          <span className="text-[10px] text-zinc-500">{formatDuration(child.durationSec)}</span>
+
+        {loading ? (
+          <p className="text-sm text-grey">清点道具中…</p>
+        ) : parents.length === 0 ? (
+          <div className="grid place-items-center border-2 border-dashed border-ink/30 py-20 text-sm text-grey">
+            道具间是空的——点击「入库视频道具」或运行{" "}
+            <code className="mx-1 border border-ink/20 bg-white/60 px-1.5 py-0.5 font-mono text-xs">npm run assets</code>{" "}
+            生成内置演示道具
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {parents.map((asset) => {
+              const children = childrenOf(asset.file);
+              return (
+                <div key={asset.id} className="flex flex-col">
+                  <PropCard
+                    asset={asset}
+                    segmentCount={children.length}
+                    expanded={expandedParent === asset.id}
+                    onToggle={() => setExpandedParent(expandedParent === asset.id ? null : asset.id)}
+                    editing={editing === asset.id}
+                    onEdit={() => setEditing(asset.id)}
+                    onCancel={() => setEditing(null)}
+                    onSave={(description, tags) => void saveEdit(asset.id, description, tags)}
+                    onDelete={() => void remove(asset.id)}
+                    onAnalyze={() => void analyze(asset.id)}
+                  />
+                  {expandedParent === asset.id && children.length > 0 && (
+                    <div className="mt-2 space-y-1.5 border border-ink/20 bg-white/40 p-2">
+                      <p className="px-1 font-mono text-[10px] font-medium uppercase tracking-[0.24em] text-grey">
+                        自动切片（{children.length} 段 · 时间戳 + 视觉描述）
+                      </p>
+                      {children.map((child) => (
+                        <div key={child.id} className="border border-ink/15 bg-white/60 p-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono text-[10px] text-orange">{child.id.replace(/^[^_]+_/, "")}</span>
+                            <span className="font-mono text-[10px] text-grey">{formatDuration(child.durationSec)}</span>
+                          </div>
+                          <video
+                            src={`${child.url}#t=${child.startTime ?? 0},${child.endTime ?? child.durationSec}`}
+                            className="mt-1 aspect-video w-full border border-ink/15 bg-black object-cover"
+                            controls
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                          <p className="mt-1 line-clamp-2 text-[11px] text-[#4a443b]">{child.description}</p>
                         </div>
-                        <video
-                          src={`${child.url}#t=${child.startTime ?? 0},${child.endTime ?? child.durationSec}`}
-                          className="mt-1 aspect-video w-full rounded bg-black object-cover"
-                          controls
-                          muted
-                          playsInline
-                          preload="metadata"
-                        />
-                        <p className="mt-1 line-clamp-2 text-[11px] text-zinc-400">{child.description}</p>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {child.tags.slice(0, 5).map((tag) => (
-                            <span key={tag} className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] text-zinc-500">{tag}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <footer className="mt-auto border-t-2 border-ink px-5 py-3.5 md:px-10">
+        <div className="mx-auto flex max-w-6xl justify-between font-mono text-[10px] tracking-[0.22em] text-grey">
+          <span>ADPILOT · 道具间</span>
+          <span className="hidden sm:inline">道具越全，开机越快</span>
         </div>
-      )}
+      </footer>
+
+      <input
+        ref={fileInput}
+        type="file"
+        accept="video/mp4,video/quicktime,video/webm,video/*"
+        multiple
+        hidden
+        onChange={(e) => void upload(e.target.files)}
+      />
     </div>
   );
 }
 
-function AssetCard({
+function PropCard({
   asset,
   segmentCount,
   expanded,
@@ -259,11 +272,11 @@ function AssetCard({
   const visibleTags = Array.from(new Set(asset.tags)).filter((tag) => !REDUNDANT_TAGS.has(tag));
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60">
-      <div className="relative aspect-[9/16] max-h-64 bg-black">
+    <div className="propcard flex flex-col border border-ink/30 bg-white/50">
+      <div className="relative overflow-hidden border-b border-ink/30 bg-black">
         <video
           src={`${asset.url}#t=0.1`}
-          className="size-full object-cover"
+          className="block aspect-[3/4] w-full object-cover"
           muted
           loop
           playsInline
@@ -271,73 +284,79 @@ function AssetCard({
           onMouseEnter={(e) => void e.currentTarget.play().catch(() => {})}
           onMouseLeave={(e) => e.currentTarget.pause()}
         />
-        <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white">
+        <span
+          className={`absolute left-2.5 top-2.5 border-[1.5px] bg-paper px-2 py-0.5 text-[10px] font-black tracking-[0.22em] ${
+            asset.origin === "upload" ? "border-orange text-orange" : "border-ink text-ink"
+          }`}
+        >
           {asset.origin === "upload" ? "上传" : "内置"}
         </span>
         {asset.analysis === "pending" && (
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse rounded-full bg-black/70 px-3 py-1 text-[10px] text-amber-300">
+          <span className="absolute inset-0 grid place-items-center bg-paper/75 font-mono text-[11px] tracking-[0.3em] text-orange [animation:ch-ant_1.6s_steps(2)_infinite]">
             拆分分析中…
           </span>
         )}
-        <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] text-zinc-200">
+        <span className="absolute bottom-2.5 right-2.5 bg-ink/80 px-2 py-1 font-mono text-[10.5px] tracking-[0.08em] text-paper">
           {formatDuration(asset.durationSec)}
         </span>
       </div>
 
       {editing ? (
-        <div className="space-y-2 p-3">
+        <div className="space-y-2 p-3.5">
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100 focus:border-indigo-500 focus:outline-none"
-            placeholder="素材描述（中英文都可以，描述越具体检索越准）"
+            className="w-full border-b-2 border-ink bg-transparent px-1 py-1.5 text-xs text-ink outline-none focus:border-orange"
+            placeholder="道具描述（描述越具体检索越准）"
           />
           <input
             value={tags}
             onChange={(e) => setTags(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-100 focus:border-indigo-500 focus:outline-none"
-            placeholder="标签，逗号分隔，如：反应, 手机, 游戏, celebration"
+            className="w-full border-b-2 border-ink bg-transparent px-1 py-1.5 text-xs text-ink outline-none focus:border-orange"
+            placeholder="标签，逗号分隔，如：反应, 手机, 游戏"
           />
           <div className="flex gap-2">
-            <button type="button" onClick={() => onSave(description, tags)} className="flex-1 rounded-lg bg-emerald-500/90 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400">
+            <button type="button" onClick={() => onSave(description, tags)} className="flex-1 bg-ink py-1.5 text-xs font-black tracking-[0.1em] text-paper hover:bg-orange">
               保存
             </button>
-            <button type="button" onClick={onCancel} className="flex-1 rounded-lg border border-zinc-700 py-1.5 text-xs text-zinc-300">
+            <button type="button" onClick={onCancel} className="flex-1 border-[1.5px] border-ink py-1.5 text-xs font-bold">
               取消
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col gap-2 p-3">
-          <p className="line-clamp-2 text-xs text-zinc-300">{descriptionLabel}</p>
+        <div className="flex flex-1 flex-col p-3.5">
+          <p className="mb-1.5 font-mono text-[10px] tracking-[0.22em] text-grey">
+            {asset.id.toUpperCase()} · 道具间
+          </p>
+          <p className="line-clamp-2 min-h-[41px] text-[12.5px] leading-[1.65] text-[#3a352d]">{descriptionLabel}</p>
           {visibleTags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               {visibleTags.slice(0, 6).map((tag) => (
-                <span key={tag} className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">{tag}</span>
+                <span key={tag} className="border border-ink/30 px-2 py-0.5 text-[10px] tracking-[0.06em] text-[#5c554a]">{tag}</span>
               ))}
             </div>
           )}
-          <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
+          <div className="mt-auto flex items-center gap-3 border-t border-ink/15 pt-2.5">
             {segmentCount > 0 ? (
-              <button type="button" onClick={onToggle} className="flex-1 rounded-lg border border-amber-500/40 bg-amber-500/10 py-1 text-[11px] text-amber-300">
+              <button type="button" onClick={onToggle} className="border-b-2 border-orange pb-0.5 text-[11.5px] font-extrabold tracking-[0.08em] hover:text-orange">
                 {expanded ? "收起切片 ▲" : `切片 ${segmentCount} 段 ▼`}
               </button>
             ) : (
-              <button type="button" onClick={onAnalyze} className="flex-1 rounded-lg border border-zinc-700 py-1 text-[11px] text-zinc-300 hover:border-zinc-500" title="镜头检测 → 切片 → 视觉描述">
+              <button
+                type="button"
+                onClick={onAnalyze}
+                className="border-b-2 border-orange pb-0.5 text-[11.5px] font-extrabold tracking-[0.08em] hover:text-orange"
+                title="镜头检测 → 切片 → 视觉描述"
+              >
                 AI 切片
               </button>
             )}
-            <button type="button" onClick={onEdit} className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:border-zinc-500">
-              编辑
-            </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-500 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 max-sm:text-zinc-300"
-            >
-              删除
-            </button>
+            <span className="ml-auto flex gap-3 text-[11px] text-grey">
+              <button type="button" onClick={onEdit} className="hover:text-orange">编辑</button>
+              <button type="button" onClick={onDelete} className="hover:text-[#c22b00]">删除</button>
+            </span>
           </div>
         </div>
       )}

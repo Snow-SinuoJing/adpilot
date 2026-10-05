@@ -24,19 +24,19 @@ export const SCENE_STATUS_ZH: Record<SceneStatus, string> = {
 };
 
 export const SOURCE_ZH: Record<SourceStrategy, string> = {
-  EXISTING_ASSET: "素材库",
+  EXISTING_ASSET: "道具间",
   GENERATED_VIDEO: "AI 生成",
   REUSE: "复用",
-  FALLBACK: "降级素材",
+  FALLBACK: "降级道具",
 };
 
 export const ACTOR_ZH: Record<RuntimeActor, string> = {
   DIRECTOR: "导演",
-  STRATEGY: "策略",
-  ASSET: "素材",
-  CRITIC: "评审",
-  TOOL: "工具",
-  SYSTEM: "系统",
+  STRATEGY: "编剧",
+  ASSET: "道具师",
+  CRITIC: "审片员",
+  TOOL: "AI 摄影师",
+  SYSTEM: "制片",
 };
 
 export const ACTION_ZH: Record<DirectorAction, string> = {

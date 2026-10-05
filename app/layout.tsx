@@ -1,30 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "AdPilot — Self-Repairing Agentic Ad Studio",
-  description:
-    "Agentic Decision + Deterministic Execution: brief in, QA'd vertical video ad out.",
+  title: "AdPilot — 自修复智能体广告工作室",
+  description: "发一张通告单，智能体剧组开机：三幕叙事、道具检索或 AI 生成、逐帧质检、单镜头自修复，交付竖版成片。",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100">{children}</body>
+    <html lang="zh-CN" className="h-full antialiased">
+      <body className="min-h-full flex flex-col bg-paper text-ink font-sans">{children}</body>
     </html>
   );
 }

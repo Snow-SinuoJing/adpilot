@@ -56,48 +56,6 @@ export function IconDownload({ className }: IconProps) {
   );
 }
 
-export function IconFilm({ className }: IconProps) {
-  return (
-    <Svg className={className}>
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <line x1="7" x2="7" y1="3" y2="21" />
-      <line x1="17" x2="17" y1="3" y2="21" />
-      <line x1="3" x2="7" y1="8" y2="8" />
-      <line x1="3" x2="7" y1="16" y2="16" />
-      <line x1="17" x2="21" y1="8" y2="8" />
-      <line x1="17" x2="21" y1="16" y2="16" />
-    </Svg>
-  );
-}
-
-export function IconImage({ className }: IconProps) {
-  return (
-    <Svg className={className}>
-      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-      <circle cx="9" cy="9" r="2" />
-      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-    </Svg>
-  );
-}
-
-export function IconSparkles({ className }: IconProps) {
-  return (
-    <Svg className={className}>
-      <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z" />
-    </Svg>
-  );
-}
-
-export function IconAlert({ className }: IconProps) {
-  return (
-    <Svg className={className}>
-      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-      <path d="M12 9v4" />
-      <path d="M12 17h.01" />
-    </Svg>
-  );
-}
-
 export function IconArrowLeft({ className }: IconProps) {
   return (
     <Svg className={className}>
