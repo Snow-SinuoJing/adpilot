@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>08 素材库 — AdPilot</title>
+<style>
+  /* ═══ 方向 08 · 素材库（道具间）═══
+     提案刊语言：素材是片场的道具，每条素材是一张印刷档案卡——
+     编号、来源章、视觉描述、检索标签，卡片可悬停翻看。 */
+  :root {
+    --paper: #f2efe7; --ink: #141210; --orange: #ff4d00; --grey: #8d8779;
+    --mono: "SF Mono", Menlo, monospace;
+    --sans: "PingFang SC", "Hiragino Sans GB", sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--paper); color:var(--ink); font-family:var(--sans); }
+
+  .brandbar { display:flex; align-items:center; gap:26px; padding:14px 40px; border-bottom:2px solid var(--ink); }
+  .logo { display:flex; align-items:center; gap:10px; }
+  .logo .glyph { position:relative; width:27px; height:27px; background:var(--ink); color:var(--paper); font-weight:900; font-size:15px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:2px; overflow:hidden; }
+  .logo .glyph i { position:absolute; top:0; left:0; right:0; height:8px; background:repeating-linear-gradient(-45deg, var(--orange) 0 5px, var(--ink) 5px 10px); }
+  .logo b { font-size:19px; font-weight:900; }
+  .logo .tagline { font-size:10.5px; color:var(--grey); letter-spacing:.2em; border-left:1px solid rgba(20,18,16,.25); padding-left:10px; }
+  .brandbar nav { margin-left:auto; display:flex; gap:24px; align-items:center; font-size:12px; font-weight:700; letter-spacing:.16em; }
+  .brandbar nav a { color:var(--ink); text-decoration:none; padding-bottom:2px; border-bottom:2px solid transparent; }
+  .brandbar nav a:hover { border-bottom-color:var(--orange); color:var(--orange); }
+
+  .hero { padding:38px 40px 30px; display:grid; grid-template-columns:1fr auto; align-items:end; gap:30px; border-bottom:3px solid var(--ink); }
+  .hero .kick { font-family:var(--mono); font-size:11px; letter-spacing:.34em; color:var(--orange); margin-bottom:12px; }
+  .hero h1 { font-size:46px; font-weight:900; line-height:1.05; }
+  .hero h1 em { font-style:normal; color:var(--orange); }
+  .hero .sub { margin-top:12px; font-size:13.5px; line-height:1.85; color:#5c554a; max-width:620px; }
+  .hero .sub b { color:var(--ink); }
+  .hero .side { text-align:right; padding-bottom:4px; }
+  .up { display:inline-block; font-size:13px; font-weight:900; letter-spacing:.18em; color:var(--paper); background:var(--ink); padding:14px 28px; text-decoration:none; transition:background .15s; }
+  .up:hover { background:var(--orange); }
+  .up-note { margin-top:10px; font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--grey); }
+  .up-note code { background:rgba(20,18,16,.08); padding:2px 6px; }
+
+  .wrap { padding:30px 40px 70px; }
+  .toolbar { display:flex; align-items:center; gap:18px; margin-bottom:20px; }
+  .toolbar .count { font-family:var(--mono); font-size:11px; letter-spacing:.2em; color:var(--grey); }
+  .toolbar .count b { color:var(--ink); }
+  .toolbar .filters { margin-left:auto; display:flex; gap:10px; }
+  .ftag { font-size:11px; font-weight:700; letter-spacing:.14em; color:var(--grey); border:1.5px solid rgba(20,18,16,.3); padding:6px 13px; cursor:pointer; transition:all .15s; }
+  .ftag:hover { border-color:var(--ink); color:var(--ink); }
+  .ftag.on { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+  .card { display:flex; flex-direction:column; border:1px solid rgba(20,18,16,.3); background:rgba(255,255,255,.5); transition:transform .18s ease, box-shadow .18s ease; }
+  .card:hover { transform:translateY(-4px); box-shadow:0 14px 30px rgba(20,18,16,.16); }
+  .card .cov { display:block; position:relative; overflow:hidden; border-bottom:1px solid rgba(20,18,16,.3); }
+  .card img { width:100%; aspect-ratio:16/10; object-fit:cover; display:block; filter:saturate(1.07) contrast(1.03); transition:transform .3s ease; }
+  .card:hover img { transform:scale(1.04); }
+  .card .origin { position:absolute; top:10px; left:10px; font-size:10px; font-weight:900; letter-spacing:.22em; padding:4px 9px; background:var(--paper); border:1.5px solid var(--ink); }
+  .card.upl .origin { color:var(--orange); border-color:var(--orange); }
+  .card .dur { position:absolute; bottom:10px; right:10px; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; color:var(--paper); background:rgba(20,18,16,.78); padding:4px 8px; }
+  .card .pending { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(242,239,231,.72); font-family:var(--mono); font-size:11px; letter-spacing:.3em; color:var(--orange); animation:blink 1.6s steps(2) infinite; }
+  @keyframes blink { 50% { opacity:.4; } }
+
+  .card .in { display:block; padding:13px 15px 14px; }
+  .card .no { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--grey); margin-bottom:6px; }
+  .card .ds { display:block; font-size:12.5px; line-height:1.65; min-height:41px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .card .tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+  .card .tags i { font-style:normal; font-size:10px; letter-spacing:.06em; border:1px solid rgba(20,18,16,.3); color:#5c554a; padding:3px 8px; }
+  .card .ops { display:flex; align-items:center; gap:12px; margin-top:12px; padding-top:11px; border-top:1px solid rgba(20,18,16,.18); }
+  .card .ops .main { display:inline-block; font-size:11.5px; font-weight:800; letter-spacing:.1em; color:var(--ink); text-decoration:none; border-bottom:2px solid var(--orange); padding-bottom:2px; }
+  .card .ops .main:hover { color:var(--orange); }
+  .card .ops .sub { margin-left:auto; display:flex; gap:10px; }
+  .card .ops .sub a { font-size:11px; color:var(--grey); text-decoration:none; }
+  .card .ops .sub a:hover { color:var(--orange); }
+  .card .segs { font-family:var(--mono); font-size:10px; letter-spacing:.14em; color:var(--orange); }
+
+  .card.drop { border:1.5px dashed rgba(20,18,16,.4); background:transparent; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:300px; cursor:pointer; transition:border-color .15s, background .15s; }
+  .card.drop:hover { border-color:var(--orange); background:rgba(255,77,0,.04); }
+  .card.drop .plus { font-size:30px; font-weight:900; color:var(--orange); }
+  .card.drop p { margin-top:10px; font-size:13.5px; font-weight:800; }
+  .card.drop small { margin-top:6px; font-size:10.5px; color:var(--grey); text-align:center; line-height:1.7; padding:0 20px; }
+
+  .colophon { border-top:2px solid var(--ink); padding:14px 40px; display:flex; justify-content:space-between; font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--grey); }
+</style>
+</head>
+<body>
+<header class="brandbar">
+  <span class="logo">
+    <span class="glyph"><i></i>A</span>
+    <b>AdPilot</b>
+    <span class="tagline">自修复智能体广告工作室</span>
+  </span>
+  <nav>
+    <a href="07-home.html">立项</a>
+    <a href="#" style="border-bottom:2px solid var(--orange); color:var(--orange);">素材库</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div>
+    <p class="kick">PROP ROOM · 素材库</p>
+    <h1>道具间<em>。</em></h1>
+    <p class="sub">素材是片场的道具：<b>上传后自动镜头拆分与视觉描述</b>，切片直接参与智能体检索匹配——立项时道具越全，成片越快。</p>
+  </div>
+  <div class="side">
+    <a class="up" href="#">＋ 上传视频素材</a>
+    <p class="up-note">支持 mp4 / mov / webm · 长素材自动切片</p>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="toolbar">
+    <span class="count">共 <b>19</b> 条 · 内置 12 · 上传 7</span>
+    <div class="filters">
+      <span class="ftag on">全部</span>
+      <span class="ftag">内置</span>
+      <span class="ftag">上传</span>
+      <span class="ftag">已切片</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card drop">
+      <span class="plus">＋</span>
+      <p>上传视频素材</p>
+      <small>拖入或点击选择 · 长素材自动做<br>镜头检测 → 切片 → 视觉描述</small>
+    </div>
+
+    <div class="card">
+      <span class="cov"><img src="img/asset-1.jpg" alt=""><span class="origin">内置</span><span class="dur">0:05</span></span>
+      <span class="in">
+        <span class="no">ASSET_001 · 库</span>
+        <span class="ds">年轻女性玩家看到消除成功时面部被点亮，惊喜反应特写，竖屏手机游戏场景</span>
+        <span class="tags"><i>反应</i><i>面部</i><i>手机</i><i>特写</i></span>
+        <span class="ops"><a class="main" href="#">AI 切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card">
+      <span class="cov"><img src="img/asset-2.jpg" alt=""><span class="origin">内置</span><span class="dur">0:06</span></span>
+      <span class="in">
+        <span class="no">ASSET_002 · 库</span>
+        <span class="ds">两个朋友在沙发上一起玩手游，笑出声的真实互动，中景</span>
+        <span class="tags"><i>反应</i><i>朋友</i><i>沙发</i><i>笑声</i></span>
+        <span class="ops"><a class="main" href="#">AI 切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card upl">
+      <span class="cov"><img src="img/archive-3.jpg" alt=""><span class="origin">上传</span><span class="dur">0:46</span></span>
+      <span class="in">
+        <span class="no">USER_003 · 已切 10 段 ▾</span>
+        <span class="ds">元气森林气泡水产品展示：瓶身特写、倒水气泡、便利店货架陈列</span>
+        <span class="tags"><i>产品</i><i>饮品</i><i>气泡</i><i>货架</i></span>
+        <span class="ops"><a class="main" href="#">查看切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card">
+      <span class="cov"><img src="img/asset-4.jpg" alt=""><span class="origin">内置</span><span class="dur">0:04</span></span>
+      <span class="in">
+        <span class="no">ASSET_004 · 库</span>
+        <span class="ds">拇指点击手机屏幕下载按钮的明显特写，upbeat 节奏感</span>
+        <span class="tags"><i>拇指</i><i>下载</i><i>CTA</i></span>
+        <span class="ops"><a class="main" href="#">AI 切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card">
+      <span class="cov"><img src="img/asset-5.jpg" alt=""><span class="origin">内置</span><span class="dur">0:05</span></span>
+      <span class="in">
+        <span class="no">ASSET_005 · 库</span>
+        <span class="ds">获胜瞬间握拳庆祝，真实笑容，手持手机入镜</span>
+        <span class="tags"><i>庆祝</i><i>胜利</i><i>笑容</i></span>
+        <span class="ops"><a class="main" href="#">AI 切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card upl">
+      <span class="cov"><img src="img/archive-1.jpg" alt=""><span class="origin">上传</span><span class="dur">0:23</span></span>
+      <span class="in">
+        <span class="no">USER_006 · 已切 4 段 ▾</span>
+        <span class="ds">榴莲冰皮月饼制作过程：冰皮揉制、包馅、切面榴莲肉特写</span>
+        <span class="tags"><i>月饼</i><i>制作</i><i>特写</i><i>甜品</i></span>
+        <span class="ops"><a class="main" href="#">查看切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card">
+      <span class="cov"><img src="img/asset-6.jpg" alt=""><span class="origin">内置</span><span class="dur">0:06</span></span>
+      <span class="in">
+        <span class="no">ASSET_006 · 库</span>
+        <span class="ds">城市夜景车流延时摄影，竖屏光轨，霓虹氛围</span>
+        <span class="tags"><i>城市</i><i>延时</i><i>夜景</i></span>
+        <span class="ops"><a class="main" href="#">AI 切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card">
+      <span class="cov"><img src="img/asset-7.jpg" alt=""><span class="origin">内置</span><span class="dur">0:06</span></span>
+      <span class="in">
+        <span class="no">ASSET_007 · 库</span>
+        <span class="ds">清晨柔光中木桌上的咖啡杯，热气缓慢升起</span>
+        <span class="tags"><i>咖啡</i><i>桌面</i><i>生活方式</i><i>晨间</i></span>
+        <span class="ops"><a class="main" href="#">AI 切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card upl">
+      <span class="cov">
+        <img src="img/archive-2.jpg" alt=""><span class="origin">上传</span><span class="dur">0:28</span>
+        <span class="pending">拆分分析中…</span>
+      </span>
+      <span class="in">
+        <span class="no">USER_008 · 解析中</span>
+        <span class="ds">生巧慕斯条制作：巧克力淋面、切块、包装特写</span>
+        <span class="tags"><i>巧克力</i><i>制作</i></span>
+        <span class="ops"><span class="main" style="border:0; color:var(--grey); cursor:default;">解析完成后可检索</span><span class="sub"><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card">
+      <span class="cov"><img src="img/asset-8.jpg" alt=""><span class="origin">内置</span><span class="dur">0:05</span></span>
+      <span class="in">
+        <span class="no">ASSET_008 · 库</span>
+        <span class="ds">猫咪扑玩具的近景，爪子与逗猫棒对峙，趣味横生</span>
+        <span class="tags"><i>宠物</i><i>猫咪</i><i>玩耍</i><i>近景</i></span>
+        <span class="ops"><a class="main" href="#">AI 切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+
+    <div class="card upl">
+      <span class="cov"><img src="img/s3.jpg" alt=""><span class="origin">上传</span><span class="dur">0:32</span></span>
+      <span class="in">
+        <span class="no">USER_009 · 已切 7 段 ▾</span>
+        <span class="ds">榴莲冰皮月饼切面流心特写与试吃反应，暖光餐桌</span>
+        <span class="tags"><i>试吃</i><i>流心</i><i>反应</i></span>
+        <span class="ops"><a class="main" href="#">查看切片</a><span class="sub"><a href="#">编辑</a><a href="#">删除</a></span></span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<footer class="colophon">
+  <span>ADPILOT · 道具间</span>
+  <span>方向小样 ROUND-03 · 画面为演示内容</span>
+</footer>
+</body>
+</html>
