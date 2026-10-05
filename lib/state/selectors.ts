@@ -35,7 +35,18 @@ export function allowedActions(state: ProjectState, caps: Capabilities): Directo
   if (pendingPlan) actions.push("RETRIEVE_ASSET");
 
   const pendingDecision = scenes.find((s) => s.status === "SEARCHING" && s.assetCandidates && !s.sourceStrategy);
-  if (pendingDecision) actions.push("PLAN_ASSETS");
+  // Constraints changed mid-run: a scene planned for generation whose global
+  // budget is gone must be re-plannable from the library (P5: degrade locally).
+  const needsReplan = !canGenerateVideo(state)
+    ? scenes.find(
+        (s) =>
+          s.sourceStrategy === "GENERATED_VIDEO" &&
+          !s.videoUrl &&
+          (s.status === "SEARCHING" || s.status === "REPAIRING") &&
+          s.assetCandidates,
+      )
+    : undefined;
+  if (pendingDecision || needsReplan) actions.push("PLAN_ASSETS");
 
   const needsGeneration = scenes.find(
     (s) =>
@@ -73,6 +84,7 @@ export interface DirectorView {
   status: ProjectState["status"];
   brief: { product: string; market: string; platform: string; durationSec: number };
   strategyConcept?: string;
+  generationBudgetLeft: boolean;
   scenes: Array<{
     id: string;
     status: SceneState["status"];
@@ -98,6 +110,7 @@ export function directorView(state: ProjectState, caps: Capabilities): DirectorV
       durationSec: state.brief.durationSec,
     },
     strategyConcept: state.strategy?.concept,
+    generationBudgetLeft: canGenerateVideo(state),
     scenes: state.scenes.map((s) => ({
       id: s.id,
       status: s.status,

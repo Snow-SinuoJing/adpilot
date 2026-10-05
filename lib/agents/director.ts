@@ -43,7 +43,10 @@ const PRIORITY: DirectorAction[] = [
 function pickScene(view: DirectorView, action: DirectorAction): string | undefined {
   const byAction: Record<string, (s: DirectorView["scenes"][number]) => boolean> = {
     RETRIEVE_ASSET: (s) => s.status === "PLANNED",
-    PLAN_ASSETS: (s) => s.status === "SEARCHING" && !s.sourceStrategy,
+    PLAN_ASSETS: (s) =>
+      s.status === "SEARCHING" &&
+      (!s.sourceStrategy ||
+        (s.sourceStrategy === "GENERATED_VIDEO" && !s.hasVideo && !view.generationBudgetLeft)),
     GENERATE_VIDEO: (s) =>
       s.sourceStrategy === "GENERATED_VIDEO" && !s.hasVideo && (s.status === "SEARCHING" || s.status === "REPAIRING"),
     EVALUATE_SCENE: (s) => s.hasVideo && s.qaScore === undefined && s.status !== "READY",
@@ -75,7 +78,9 @@ function reasonFor(action: DirectorAction, view: DirectorView): string {
     case "RETRIEVE_ASSET":
       return `Scene needs footage: searching the asset library before deciding to generate.`;
     case "PLAN_ASSETS":
-      return `Retrieved candidates for a scene with no source decision yet.`;
+      return view.generationBudgetLeft
+        ? `Retrieved candidates for a scene with no source decision yet.`
+        : `Generation budget is exhausted — re-planning a pending scene from the asset library.`;
     case "GENERATE_VIDEO":
       return `No retrieved asset sufficiently expresses the scene intent — generating dedicated footage.`;
     case "EVALUATE_SCENE":

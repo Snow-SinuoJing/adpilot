@@ -136,6 +136,37 @@ describe("bounded action space (P1)", () => {
     expect(allowedActions(state, NO_CAPS)).toContain("PLAN_ASSETS");
   });
 
+  it("a scene stranded by an exhausted generation budget becomes re-plannable", () => {
+    const state = stateWith((s) => {
+      completeScenes(s);
+      // complete S2 the same way, then strand S3 mid-generation
+      const s2 = s.scenes[1];
+      s2.status = "READY";
+      s2.videoUrl = "/api/media/prj_test/S2-existing.mp4";
+      s2.selectedAsset = s.scenes[0].selectedAsset;
+      s2.audioUrl = "/api/media/prj_test/S2-voice.mp3";
+
+      s.runtime.totalVideoGenerations = MAX_TOTAL_VIDEO_GENERATIONS;
+      const s3 = s.scenes[2];
+      s3.status = "SEARCHING";
+      s3.videoUrl = undefined;
+      s3.audioUrl = undefined;
+      s3.selectedAsset = undefined;
+      s3.sourceStrategy = "GENERATED_VIDEO";
+      s3.generationPrompt = "photorealistic celebration";
+      s3.assetCandidates = [
+        { id: "asset_004", path: "/tmp/a.mp4", description: "player celebrates winning", tags: ["celebration"], durationSec: 5, score: 0.53 },
+      ];
+    });
+    const actions = allowedActions(state, FULL_CAPS);
+    expect(actions).not.toContain("GENERATE_VIDEO");
+    expect(actions).toContain("PLAN_ASSETS");
+    const decision = policyDecision(directorView(state, FULL_CAPS));
+    expect(decision.action).toBe("PLAN_ASSETS");
+    expect(decision.sceneId).toBe("S3");
+    expect(decision.reason).toMatch(/re-planning|budget/i);
+  });
+
   it("all-ready + composed → FINISH only", () => {
     const state = stateWith((s) => {
       for (const scene of s.scenes) {
