@@ -59,8 +59,8 @@ describe("e2e offline demo run", () => {
     expect(byId.S1.sourceStrategy).toBe("EXISTING_ASSET");
     expect(byId.S3.sourceStrategy).toBe("EXISTING_ASSET");
     expect(byId.S2.sourceStrategy).toBe("GENERATED_VIDEO");
-    expect(byId.S1.sourceReason).toMatch(/Library clip/);
-    expect(byId.S2.sourceReason).toMatch(/No retrieved asset/i);
+    expect(byId.S1.sourceReason).toMatch(/素材库片段/);
+    expect(byId.S2.sourceReason).toMatch(/AI 生成/);
   });
 
   it("runs the repair arc on S2 only: 64 REPAIR → regenerate → 88 PASS", () => {
@@ -109,7 +109,7 @@ describe("e2e offline demo run", () => {
     }
     const criticEvents = state.events.filter((e) => e.type === "CRITIC_COMPLETED");
     expect(criticEvents.map((e) => e.title)).toEqual(
-      expect.arrayContaining(["S2 scored 64 — REPAIR", "S2 scored 88 — PASS"]),
+      expect.arrayContaining(["S2 得分 64 — 需修复", "S2 得分 88 — 通过"]),
     );
   });
 

@@ -17,14 +17,17 @@ interface AssetMetadata {
   durationSec: number;
 }
 
+/** CJK-aware tokenizer: latin words (≥3 chars) + every CJK char as a token,
+ *  so Chinese scene intents still match a bilingual tag library. */
 function tokenize(text: string): Set<string> {
-  return new Set(
-    text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter((t) => t.length > 2),
-  );
+  const tokens = new Set<string>();
+  for (const word of text.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []) {
+    tokens.add(word);
+  }
+  for (const char of text.match(/[\u4e00-\u9fff]/g) ?? []) {
+    tokens.add(char);
+  }
+  return tokens;
 }
 
 function scoreAsset(query: { intent: string; purpose: string }, asset: AssetMetadata): number {

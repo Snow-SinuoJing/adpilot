@@ -8,16 +8,15 @@ import { isMockMode, runStructured } from "./llm";
  * model answers — the model proposes, the runtime disposes.
  */
 
-const SYSTEM = `You are a creative strategist for performance advertising.
-Method: "platform-first remix" — recombine proven hooks and beats that work on ${"TikTok / Reels / Shorts"} into a fresh narrative.
-
-Create a 3-scene vertical-video ad plan:
-- S1 HOOK (stop the scroll), S2 PROOF (show the product delivering value), S3 CTA (drive install).
-- scene durations are integers ≥ 2s and MUST sum exactly to the brief duration.
-- visualIntent must be a concrete, filmable image (action / emotion / state), friendly to stock or generated footage.
-- voiceover must be short, spoken-style, localized to the target market (write English unless the market language is Spanish or Portuguese — then write in that language).
-- Never mention money, payouts, salaries or real-world rewards (ad compliance).
-- Deeply respect the target market's culture, humour and aesthetics.`;
+const SYSTEM = `你是一位效果广告创意策略专家，方法论是"平台优先的成功元素重组"。
+为竖版信息流广告规划一个三段式方案：
+- S1 钩子（HOOK，让人停下划动）、S2 证明（PROOF，展示产品真实价值）、S3 行动号召（CTA，引导下载）。
+- 每个场景时长为不小于 2 秒的整数，且三个场景时长之和必须精确等于 Brief 总时长。
+- visualIntent 写成具体、可拍摄的画面（动作/情绪/状态），便于匹配现有素材或 AI 生成，用简体中文。
+- voiceover 要短、口语化、符合目标市场语言（巴西市场用葡萄牙语，其他默认英语）。
+- 禁止出现与现实奖励、金钱相关的字眼（合规要求）。
+- 创意必须深度契合目标市场的文化、审美与网络语境。
+- concept、hook、targetEmotion 用简体中文。`;
 
 function splitDuration(total: number): [number, number, number] {
   return total === 15 ? [4, 6, 5] : [6, 7, 7];
@@ -27,29 +26,29 @@ function splitDuration(total: number): [number, number, number] {
 export function mockStrategy(brief: AdBrief): CreativeStrategy {
   const [d1, d2, d3] = splitDuration(brief.durationSec);
   return CreativeStrategySchema.parse({
-    concept: `Relatable frustration → delightful mastery → invitation: a 3-beat narrative showing how ${brief.productName} turns dead time into small victories for ${brief.audience}.`,
-    hook: `Open on the exact feeling of boredom ${brief.audience} know too well — then break it with colour and speed.`,
-    targetEmotion: "playful FOMO — the itch to try one level right now",
+    concept: `共鸣 → 证明 → 邀请：三段式叙事展现 ${brief.productName} 如何把 ${brief.audience} 的碎片时间变成小胜利。`,
+    hook: `从 ${brief.audience} 最熟悉的"无聊瞬间"切入，用色彩与节奏瞬间打破。`,
+    targetEmotion: "玩心勃勃的怕错过感——现在就想来一局",
     scenes: [
       {
         id: "S1",
         purpose: "HOOK",
         durationSec: d1,
-        visualIntent: `Close-up of a ${brief.audience.split(/[\s,]/)[0] || "player"}'s face lighting up while playing ${brief.productName} on a phone, vibrant casual-game colours reflecting on their face, quick energetic pacing`,
+        visualIntent: `年轻玩家玩手机游戏 ${brief.productName} 时脸上绽放惊喜笑容的特写，明快的休闲游戏色彩映在脸上，节奏轻快有感染力`,
         voiceover: `Tired of boring breaks? ${brief.productName} changes the game.`,
       },
       {
         id: "S2",
         purpose: "PROOF",
         durationSec: d2,
-        visualIntent: `Seamless level-progression transformation in ${brief.productName}: satisfying cascade of tiles clearing, combos chaining and rewards bursting as difficulty ramps up, screen-first kinetic gameplay`,
+        visualIntent: `${brief.productName} 关卡推进的丝滑蜕变过程：磁砖连锁消除、连击链式爆发的爽快瞬间，难度逐步升级的核心玩法演示`,
         voiceover: `Every level is short, smart and surprisingly satisfying.`,
       },
       {
         id: "S3",
         purpose: "CTA",
         durationSec: d3,
-        visualIntent: `Player celebrates winning a level with a genuine smile, thumb visibly taps the download area of the phone, upbeat closing energy with space for the ${brief.productName} logo`,
+        visualIntent: `玩家赢得关卡后真诚庆祝、笑容灿烂，拇指明显点击手机上的下载区域，收尾充满活力，留出品牌标露出空间`,
         voiceover: `Download ${brief.productName} free — your first win is waiting.`,
       },
     ],

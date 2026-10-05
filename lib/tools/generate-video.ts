@@ -106,7 +106,7 @@ export async function pollVideoJob(
     }
     if (opts.onProgress && Date.now() - lastReport > 15_000) {
       lastReport = Date.now();
-      opts.onProgress(`video job ${jobId}: ${result.status.toLowerCase()}`, { status: result.status });
+      opts.onProgress(`视频任务 ${jobId}：${result.status === "RUNNING" ? "生成中" : "排队中"}`, { status: result.status });
     }
     await sleep(opts.intervalMs);
   }
@@ -128,7 +128,7 @@ async function submitWithRetry(
       lastError = error;
       if (attempt < 2) {
         const backoff = 2_000 * 2 ** attempt;
-        onProgress?.(`submit failed (attempt ${attempt + 1}), retrying in ${backoff / 1000}s`);
+        onProgress?.(`提交失败（第 ${attempt + 1} 次），${backoff / 1000} 秒后重试`);
         await sleep(backoff);
       }
     }
@@ -163,7 +163,7 @@ export async function generateSceneVideo(request: SceneVideoRequest): Promise<Sc
   if (demoMode() !== "live") {
     const hit = readVideoCache(key);
     if (hit) {
-      request.onProgress?.(`cache hit for this exact generation request`, { cacheKey: key });
+      request.onProgress?.(`命中缓存：完全相同的生成请求直接复用真实结果`, { cacheKey: key });
       const dest = mediaFile(request.projectId, `${request.sceneId}-gen${request.generationIndex}.mp4`);
       fs.copyFileSync(hit.file, dest);
       return {
@@ -177,14 +177,14 @@ export async function generateSceneVideo(request: SceneVideoRequest): Promise<Sc
   }
 
   request.onProgress?.(
-    `submitting to ${provider.name} (${provider.model})`,
+    `提交到 ${provider.name}（${provider.model}）`,
     { provider: provider.name, model: provider.model },
   );
   const jobId = await submitWithRetry(provider, {
     prompt: request.prompt,
     durationSec: request.durationSec,
   }, request.onProgress);
-  request.onProgress?.(`job accepted: ${jobId}`, { jobId });
+  request.onProgress?.(`任务已受理：${jobId}`, { jobId });
 
   const { intervalMs, timeoutMs } = pollSettings(provider.name);
   const videoUrl = await pollVideoJob(provider, jobId, {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AdBrief } from "@/lib/state/schema";
 import { DEMO_BRIEF } from "@/lib/demo/demo-brief";
+import { PROJECT_STATUS_ZH } from "@/lib/i18n";
 
 const EMPTY_FORM = {
   productName: "",
@@ -15,29 +16,38 @@ const EMPTY_FORM = {
   additionalRequirement: "",
 };
 
+interface HistoryItem {
+  projectId: string;
+  product?: string;
+  market?: string;
+  status?: string;
+  createdAt?: string;
+  hasFinal: boolean;
+  demoMode?: string;
+}
+
 export function BriefForm() {
   const router = useRouter();
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [replays, setReplays] = useState<Array<{ name: string; product?: string }>>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+
+  const refreshHistory = useCallback(() => {
+    fetch("/api/projects")
+      .then((r) => r.json())
+      .then((body) => setHistory(body.projects ?? []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/replay")
       .then((r) => r.json())
       .then((body) => setReplays(body.replays ?? []))
       .catch(() => {});
-  }, []);
-
-  const startReplay = async (name: string) => {
-    const response = await fetch("/api/replay", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    const body = await response.json();
-    if (response.ok) router.push(`/project/${body.projectId}`);
-  };
+    refreshHistory();
+  }, [refreshHistory]);
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -75,7 +85,7 @@ export function BriefForm() {
         body: JSON.stringify(brief),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "failed to create project");
+      if (!response.ok) throw new Error(body.error ?? "创建项目失败");
 
       router.push(`/project/${body.projectId}?autostart=1`);
     } catch (e) {
@@ -84,65 +94,82 @@ export function BriefForm() {
     }
   };
 
+  const startReplay = async (name: string) => {
+    const response = await fetch("/api/replay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const body = await response.json();
+    if (response.ok) router.push(`/project/${body.projectId}`);
+  };
+
   const valid = form.productName && form.productDescription && form.market && form.audience;
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center gap-6 px-6 py-12">
+    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center gap-5 px-6 py-10">
       <header className="space-y-2">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-indigo-500 font-black text-white">A</span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">AdPilot</h1>
-            <p className="text-sm text-zinc-400">Self-Repairing Agentic Ad Studio</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-xl bg-indigo-500 font-black text-white">A</span>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">AdPilot</h1>
+              <p className="text-sm text-zinc-400">自修复智能体广告工作室</p>
+            </div>
           </div>
+          <a
+            href="/assets"
+            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-zinc-500"
+          >
+            🎞 素材库
+          </a>
         </div>
         <p className="text-sm leading-relaxed text-zinc-400">
-          Submit a brief. A Creative Director agent plans 3 scenes, decides between library
-          footage and AI generation, QA-checks every generated scene with a multimodal critic,
-          and repairs failures locally — down to one final MP4.
+          提交广告简报：创意导演智能体规划 3 个场景、逐场景决策用素材库还是 AI 生成、多模态评审质检每个生成画面、
+          失败只修复单个场景，最终输出一条竖版 MP4。
         </p>
       </header>
 
       <div className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Ad Brief</h2>
+          <h2 className="font-semibold">广告简报</h2>
           <button
             type="button"
             onClick={loadDemo}
             className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20"
           >
-            Load Demo Brief
+            加载演示简报
           </button>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Product" className="col-span-2">
+          <Field label="产品名称" className="col-span-2">
             <input className={inputClass} value={form.productName} onChange={(e) => set("productName", e.target.value)} placeholder="Tile Blitz" />
           </Field>
-          <Field label="Product Description" className="col-span-2">
-            <textarea className={inputClass} rows={3} value={form.productDescription} onChange={(e) => set("productDescription", e.target.value)} placeholder="A hyper-casual tile-matching puzzle game…" />
+          <Field label="产品描述" className="col-span-2">
+            <textarea className={inputClass} rows={3} value={form.productDescription} onChange={(e) => set("productDescription", e.target.value)} placeholder="超休闲磁砖消除游戏，60 秒一关，连击爽感十足…" />
           </Field>
-          <Field label="Market">
-            <input className={inputClass} value={form.market} onChange={(e) => set("market", e.target.value)} placeholder="Brazil" />
+          <Field label="投放市场">
+            <input className={inputClass} value={form.market} onChange={(e) => set("market", e.target.value)} placeholder="巴西" />
           </Field>
-          <Field label="Audience">
-            <input className={inputClass} value={form.audience} onChange={(e) => set("audience", e.target.value)} placeholder="casual mobile players 18-34" />
+          <Field label="目标受众">
+            <input className={inputClass} value={form.audience} onChange={(e) => set("audience", e.target.value)} placeholder="18-34 岁休闲手游玩家" />
           </Field>
-          <Field label="Platform">
+          <Field label="投放平台">
             <select className={inputClass} value={form.platform} onChange={(e) => set("platform", e.target.value as AdBrief["platform"])}>
               <option>TikTok</option>
               <option>Reels</option>
               <option>Shorts</option>
             </select>
           </Field>
-          <Field label="Duration">
+          <Field label="总时长">
             <select className={inputClass} value={form.durationSec} onChange={(e) => set("durationSec", Number(e.target.value) as AdBrief["durationSec"])}>
-              <option value={15}>15s</option>
-              <option value={20}>20s</option>
+              <option value={15}>15 秒</option>
+              <option value={20}>20 秒</option>
             </select>
           </Field>
-          <Field label="Additional Requirement" className="col-span-2">
-            <input className={inputClass} value={form.additionalRequirement} onChange={(e) => set("additionalRequirement", e.target.value)} placeholder="optional" />
+          <Field label="附加要求（可选）" className="col-span-2">
+            <input className={inputClass} value={form.additionalRequirement} onChange={(e) => set("additionalRequirement", e.target.value)} placeholder="强调连击爽感；色彩鲜艳，契合巴西审美" />
           </Field>
         </div>
 
@@ -156,13 +183,13 @@ export function BriefForm() {
           onClick={submit}
           className="w-full rounded-xl bg-indigo-500 py-2.5 font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {loading ? "Creating…" : "Create Campaign"}
+          {loading ? "创建中…" : "创建广告计划"}
         </button>
 
         {replays.length > 0 && (
           <div className="border-t border-zinc-800 pt-3">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-600">
-              Offline fallback · replay a recorded real run
+              离线兜底 · 回放已录制的真实运行
             </p>
             <div className="flex flex-wrap gap-2">
               {replays.map((replay) => (
@@ -180,8 +207,47 @@ export function BriefForm() {
           </div>
         )}
       </div>
+
+      {history.length > 0 && (
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-300">历史项目</h2>
+            <button type="button" onClick={refreshHistory} className="text-xs text-zinc-500 hover:text-zinc-300">
+              刷新
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {history.map((item) => (
+              <button
+                key={item.projectId}
+                type="button"
+                onClick={() => router.push(`/project/${item.projectId}`)}
+                className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-left transition hover:border-zinc-600"
+              >
+                <p className="truncate text-sm font-medium text-zinc-200">
+                  {item.hasFinal && <span className="mr-1 text-emerald-400">●</span>}
+                  {item.product ?? item.projectId}
+                </p>
+                <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                  {item.market ?? "—"} · {item.createdAt?.slice(5, 16).replace("T", " ") ?? ""}
+                  {item.demoMode === "replay" ? ` · 回放` : ""}
+                </p>
+                <span className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass(item.status)}`}>
+                  {PROJECT_STATUS_ZH[item.status as keyof typeof PROJECT_STATUS_ZH] ?? item.status}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
+}
+
+function statusClass(status?: string): string {
+  if (status === "COMPLETED") return "bg-emerald-500/15 text-emerald-300";
+  if (status === "FAILED") return "bg-red-500/15 text-red-300";
+  return "bg-zinc-800 text-zinc-400";
 }
 
 const inputClass =

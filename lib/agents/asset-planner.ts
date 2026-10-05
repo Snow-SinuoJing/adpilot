@@ -24,15 +24,15 @@ export type AssetDecision = z.infer<typeof AssetDecisionSchema>;
 
 const MATCH_THRESHOLD = 0.35;
 
-const SYSTEM = `You are an asset planner for an ad studio. For one scene, decide where its footage comes from:
-- EXISTING_ASSET: a retrieved candidate genuinely expresses the scene intent (content match AND usable duration). Set selectedAssetId.
-- GENERATED_VIDEO: no candidate is a real match. Write generationPrompt: a self-contained photorealistic video-generation prompt following these rules (hard-won constraints from production TTV models):
-  * describe action / emotion / state only — never text, captions, logos, UI, app screens or readable interfaces;
-  * no cross-shot references ("same as scene 1") — each generation is independent;
-  * include light logic (e.g. golden hour, soft window light), lens language (close-up, over-the-shoulder), real texture and physical props only — no particles, holograms, floating objects;
-  * end with quality keywords like "photorealistic, raw photo, cinematic lighting".
-- reason: one user-visible sentence (e.g. "No retrieved asset sufficiently expresses the transformation scene").
-Confidence reflects how sure you are (0–1).`;
+const SYSTEM = `你是广告工作室的素材规划师。针对单个场景，决定它的画面来源：
+- EXISTING_ASSET：检索到的候选素材确实能表达场景意图（内容匹配且时长可用）→ 设置 selectedAssetId。
+- GENERATED_VIDEO：没有任何候选真正匹配 → 编写 generationPrompt：一段自包含的写实风格视频生成提示词，遵循以下生产级约束（来之不易的经验）：
+  * 只描述动作/情绪/状态——绝不出现文字、字幕、Logo、UI、应用界面或可读屏幕；
+  * 不做跨镜头引用（"与第 1 场相同"）——每次生成相互独立；
+  * 包含光影逻辑（如黄金时刻、柔和窗光）、镜头语言（特写、过肩）、真实材质，只用物理道具——禁止粒子、全息、悬浮物体；
+  * 以质量关键词收尾，如 "photorealistic, raw photo, cinematic lighting"（提示词正文用英文，视频模型对英文最稳）。
+- reason：一句用户可见的简体中文说明（例如"素材库中没有能表达消除蜕变场景的片段，改为 AI 生成"）。
+confidence 表示把握程度（0–1）。`;
 
 /** Code-level guardrail applied to both mock and live answers. */
 function sanitize(decision: AssetDecision, candidates: AssetCandidate[], canGenerate: boolean): AssetDecision {
@@ -68,7 +68,7 @@ export function mockAssetDecision(
       sceneId: scene.id,
       strategy: "EXISTING_ASSET",
       confidence: Math.min(0.95, 0.5 + top.score / 2),
-      reason: `Library clip "${top.id}" matches: ${top.description}`,
+      reason: `素材库片段「${top.id}」匹配：${top.description}`,
       selectedAssetId: top.id,
     });
   }
@@ -78,7 +78,7 @@ export function mockAssetDecision(
       sceneId: scene.id,
       strategy: "GENERATED_VIDEO",
       confidence: 0.8,
-      reason: `No retrieved asset sufficiently expresses the ${scene.purpose.toLowerCase()} scene — generating dedicated footage.`,
+      reason: `素材库中没有能表达${scene.purpose === "HOOK" ? "钩子" : scene.purpose === "PROOF" ? "证明" : "行动号召"}场景的片段——改为 AI 生成专属画面。`,
       generationPrompt: buildGenerationPrompt(scene, brief),
     });
   }
@@ -87,7 +87,7 @@ export function mockAssetDecision(
     sceneId: scene.id,
     strategy: "FALLBACK",
     confidence: 0.4,
-    reason: `Video generation unavailable and no strong library match — using best available clip as fallback.`,
+    reason: `视频生成暂不可用且素材库无强匹配——使用最接近的素材降级兜底。`,
     selectedAssetId: top?.id,
   });
 }

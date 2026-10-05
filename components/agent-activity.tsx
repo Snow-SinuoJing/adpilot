@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import type { RuntimeEvent } from "@/lib/state/schema";
+import { ACTOR_ZH } from "@/lib/i18n";
 
-/** Auditable events only — never hidden chain-of-thought (design doc P6). */
+/** 只展示可审计事件——绝不展示隐藏思维链（设计原则 P6）。 */
 export function AgentActivity({ events }: { events: RuntimeEvent[] }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -14,7 +15,7 @@ export function AgentActivity({ events }: { events: RuntimeEvent[] }) {
   return (
     <div className="max-h-[68vh] space-y-3 overflow-y-auto pr-1">
       {events.length === 0 && (
-        <p className="text-xs text-zinc-500">Waiting for the first agent event…</p>
+        <p className="text-xs text-zinc-500">等待第一个智能体事件…</p>
       )}
       {events.map((event) => (
         <ActivityLine key={event.id} event={event} />
@@ -39,8 +40,8 @@ function ActivityLine({ event }: { event: RuntimeEvent }) {
     <div className="border-l-2 border-zinc-800 pl-3 text-xs leading-relaxed">
       <p className="flex items-baseline gap-2">
         <span className="font-mono text-[10px] text-zinc-600">{clock}</span>
-        <span className={`w-[70px] shrink-0 font-semibold ${ACTOR_COLORS[event.actor]}`}>
-          {event.actor}
+        <span className={`w-[36px] shrink-0 font-semibold ${ACTOR_COLORS[event.actor]}`}>
+          {ACTOR_ZH[event.actor]}
         </span>
       </p>
       <p className="mt-0.5 text-zinc-200">

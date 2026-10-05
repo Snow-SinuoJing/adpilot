@@ -13,19 +13,19 @@ type CriticView = ReturnType<typeof criticView>;
 
 const PASS_THRESHOLD = 75;
 
-const SYSTEM = `You are a strict multimodal QA critic for vertical video ads.
-You will see the scene intent, the generation prompt, and keyframes of the generated clip.
+const SYSTEM = `你是竖版信息流广告的严格多模态质检评审。
+你会看到场景意图、生成提示词，以及生成视频的关键帧。
 
-Score each dimension 0–100:
-- intentAlignment: does the footage express the visual intent?
-- visualQuality: sharpness, stability, plausibility, absence of AI artifacts
-- productVisibility: is the advertised game/product experience clearly on screen?
-- localization: does it fit the target market's aesthetics?
-- safetyAndText: no garbled text, no logos/UI, nothing policy-unsafe
+对每个维度打 0–100 分：
+- intentAlignment 意图一致性：画面是否表达了场景意图
+- visualQuality 画面质量：清晰度、稳定性、真实感、无 AI 伪影
+- productVisibility 产品可见度：被推广的游戏/产品体验是否清晰可见
+- localization 本地化：是否符合目标市场审美
+- safetyAndText 安全与文字：无乱码文字、无 Logo/UI、无违规内容
 
-"score" = your overall judgement (roughly the weighted mean, but lower it decisively when a dimension is broken).
-List concrete issues with severity low/medium/high.
-If the verdict should be REPAIR, also provide repair.promptDelta: one actionable sentence describing what to change in the generation prompt (add or emphasize, never remove safety exclusions).`;
+"score" 是综合判断（约为加权均值，某个维度崩了要果断压低总分）。
+issues 列出具体问题，severity 为 low/medium/high，description 用简体中文。
+如果判定需要 REPAIR，同时给出 repair.promptDelta：一句可执行的修改建议，说明生成提示词要调整什么（可以英文，供视频模型使用）。`;
 
 /** Code-enforced verdict (§7.4) — the model advises, the rule decides. */
 export function enforceVerdict(result: CriticResult): CriticResult {
@@ -59,7 +59,7 @@ export function mockCriticResult(view: CriticView, repairCount: number): CriticR
         safetyAndText: 89,
       },
       issues: [
-        { type: "pacing", severity: "low", description: "Scene could breathe half a beat longer before the payoff." },
+        { type: "pacing", severity: "low", description: "高潮前可以再留半拍呼吸感。" },
       ],
     });
   }
@@ -79,12 +79,12 @@ export function mockCriticResult(view: CriticView, repairCount: number): CriticR
         {
           type: "product-visibility",
           severity: "high",
-          description: "The gameplay payoff is not clearly readable; the product experience gets lost in the motion.",
+          description: "玩法爽点不清晰可读，产品体验淹没在运动之中。",
         },
         {
           type: "pacing",
           severity: "medium",
-          description: "Cascading action is too fast to register the core loop.",
+          description: "连锁消除节奏太快，核心玩法来不及被感知。",
         },
       ],
       repair: {

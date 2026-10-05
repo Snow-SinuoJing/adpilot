@@ -17,25 +17,25 @@ export function FinalVideo({ state }: { state: ProjectState }) {
           />
         </div>
         <div className="space-y-1">
-          <h2 className="text-sm font-semibold text-zinc-300">Final Video</h2>
+          <h2 className="text-sm font-semibold text-zinc-300">最终成片</h2>
           {state.finalVideoUrl ? (
             <>
-              <p className="text-xs text-emerald-400">Ready — {state.brief.durationSec}s vertical MP4</p>
+              <p className="text-xs text-emerald-400">已就绪 — {state.brief.durationSec} 秒竖版 MP4</p>
               <a
                 href={state.finalVideoUrl}
                 download={`${state.brief.productName.toLowerCase().replace(/\s+/g, "-")}.mp4`}
                 className="inline-block rounded-lg border border-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:border-zinc-500"
               >
-                Download MP4
+                下载 MP4
               </a>
             </>
           ) : (
             <p className="text-xs text-zinc-500">
               {state.status === "COMPOSING"
-                ? "Composing final MP4…"
+                ? "正在合成最终 MP4…"
                 : state.status === "FAILED"
-                  ? "Run failed — see error in Brief panel"
-                  : "Composed automatically once all scenes pass QA"}
+                  ? "运行失败——详见左侧简报面板的错误信息"
+                  : "所有场景通过质检后自动合成"}
             </p>
           )}
         </div>

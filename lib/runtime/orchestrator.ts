@@ -17,6 +17,7 @@ import { getVideoProvider } from "@/lib/providers/video-provider";
 import { getTtsProvider } from "@/lib/providers/tts-provider";
 import { mediaFile, urlForMedia } from "@/lib/media";
 import { llmConfig } from "@/lib/agents/llm";
+import { ACTION_ZH, DEMO_MODE_ZH, SOURCE_ZH } from "@/lib/i18n";
 
 /**
  * Orchestrator main loop (design doc §10).
@@ -87,8 +88,8 @@ export async function runProject(projectId: string, deps: OrchestratorDeps = def
     emit(projectId, {
       type: "PROJECT_STARTED",
       actor: "SYSTEM",
-      title: `Agent run started (${demoMode()} mode)`,
-      detail: `LLM: ${llmConfig().mode}${deps.capabilities.video ? ` · video: ${getVideoProvider()?.name}` : ""}`,
+      title: `智能体运行启动（${DEMO_MODE_ZH[demoMode()]}模式）`,
+      detail: `决策模型: ${llmConfig().mode === "live" ? "GLM 实时" : "mock"}${deps.capabilities.video ? ` · 视频: ${getVideoProvider()?.name}` : ""}`,
     });
 
     while (true) {
@@ -96,7 +97,7 @@ export async function runProject(projectId: string, deps: OrchestratorDeps = def
       if (isTerminal(state)) break;
 
       if (!canTakeDirectorStep(state)) {
-        failProject(projectId, "STATE", "Director step limit reached (MAX_DIRECTOR_STEPS)");
+        failProject(projectId, "STATE", "已达到导演步数上限（MAX_DIRECTOR_STEPS）");
         break;
       }
 
@@ -126,7 +127,7 @@ export async function runProject(projectId: string, deps: OrchestratorDeps = def
         type: "DECISION_MADE",
         actor: "DIRECTOR",
         sceneId: decision.sceneId,
-        title: `${decision.action}${decision.sceneId ? ` ${decision.sceneId}` : ""}`,
+        title: `决策：${ACTION_ZH[decision.action]}${decision.sceneId ? ` ${decision.sceneId}` : ""}`,
         detail: decision.reason,
         data: { action: decision.action, sceneId: decision.sceneId, reason: decision.reason },
       });
@@ -140,7 +141,7 @@ export async function runProject(projectId: string, deps: OrchestratorDeps = def
           type: "ERROR",
           actor: "SYSTEM",
           sceneId: decision.sceneId,
-          title: `${decision.action} failed`,
+          title: `${ACTION_ZH[decision.action]} 执行失败`,
           detail: message,
         });
         failProject(projectId, categorize(error), message);
@@ -168,7 +169,7 @@ function failProject(projectId: string, category: ErrorCategory, message: string
     s.status = "FAILED";
     s.error = { category, message };
   });
-  emit(projectId, { type: "ERROR", actor: "SYSTEM", title: "Project failed", detail: message });
+  emit(projectId, { type: "ERROR", actor: "SYSTEM", title: "项目失败", detail: message });
 }
 
 // ─── action handlers ─────────────────────────────────────────────────────────
@@ -194,7 +195,7 @@ async function executeAction(
 
 async function runCreateStrategy(projectId: string): Promise<void> {
   const store = getStore();
-  emit(projectId, { type: "AGENT_STARTED", actor: "STRATEGY", title: "Creating 3-scene narrative" });
+  emit(projectId, { type: "AGENT_STARTED", actor: "STRATEGY", title: "正在创建三段式创意叙事" });
 
   const state = store.get(projectId)!;
   const strategy = await createStrategy(state.brief);
@@ -217,7 +218,7 @@ async function runCreateStrategy(projectId: string): Promise<void> {
   emit(projectId, {
     type: "AGENT_COMPLETED",
     actor: "STRATEGY",
-    title: `Strategy ready: ${strategy.scenes.map((s) => `${s.id} ${s.purpose} ${s.durationSec}s`).join(" · ")}`,
+    title: `策略就绪：${strategy.scenes.map((s) => `${s.id} ${s.purpose} ${s.durationSec}s`).join(" · ")}`,
     detail: strategy.concept,
   });
 }
@@ -225,8 +226,8 @@ async function runCreateStrategy(projectId: string): Promise<void> {
 async function runRetrieveAsset(projectId: string, sceneId: string): Promise<void> {
   const store = getStore();
   store.update(projectId, (s) => transitionScene(s, sceneId, "SEARCHING"));
-  emitScene(projectId, sceneId, "Searching asset library");
-  emit(projectId, { type: "TOOL_STARTED", actor: "TOOL", sceneId, title: "search_assets" });
+  emitScene(projectId, sceneId, "正在检索素材库");
+  emit(projectId, { type: "TOOL_STARTED", actor: "TOOL", sceneId, title: "检索素材" });
 
   const state = store.get(projectId)!;
   const scene = sceneOf(state, sceneId);
@@ -239,7 +240,7 @@ async function runRetrieveAsset(projectId: string, sceneId: string): Promise<voi
     type: "TOOL_COMPLETED",
     actor: "TOOL",
     sceneId,
-    title: `search_assets → ${candidates.length} candidate${candidates.length === 1 ? "" : "s"}`,
+    title: `检索到 ${candidates.length} 个候选素材`,
     detail:
       candidates.map((c) => `${c.id} (${c.score.toFixed(2)}) ${c.description}`).join(" | ") ||
       "no candidates",
@@ -248,7 +249,7 @@ async function runRetrieveAsset(projectId: string, sceneId: string): Promise<voi
 
 async function runPlanAssets(projectId: string, sceneId: string, deps: OrchestratorDeps): Promise<void> {
   const store = getStore();
-  emit(projectId, { type: "AGENT_STARTED", actor: "ASSET", sceneId, title: "Deciding footage source" });
+  emit(projectId, { type: "AGENT_STARTED", actor: "ASSET", sceneId, title: "正在决策画面来源" });
 
   const state = store.get(projectId)!;
   const scene = sceneOf(state, sceneId);
@@ -271,7 +272,7 @@ async function runPlanAssets(projectId: string, sceneId: string, deps: Orchestra
     type: "AGENT_COMPLETED",
     actor: "ASSET",
     sceneId,
-    title: `${sceneId} → ${decision.strategy}`,
+    title: `${sceneId} → ${SOURCE_ZH[decision.strategy]}`,
     detail: decision.reason,
     data: { strategy: decision.strategy, confidence: decision.confidence },
   });
@@ -283,7 +284,7 @@ async function runPlanAssets(projectId: string, sceneId: string, deps: Orchestra
       sceneOf(s, sceneId).qualityWarning = true;
       transitionScene(s, sceneId, "READY");
     });
-    emitScene(projectId, sceneId, "Fallback without footage — flagged quality_warning");
+    emitScene(projectId, sceneId, "降级但没有可用素材——标记质量警告");
   }
 }
 
@@ -298,7 +299,7 @@ async function attachExistingAsset(projectId: string, sceneId: string): Promise<
     scene.videoUrl = urlForMedia(dest);
     transitionScene(s, sceneId, "READY");
   });
-  emitScene(projectId, sceneId, "Attached library clip — READY");
+  emitScene(projectId, sceneId, "已挂载素材库片段——就绪");
 }
 
 async function runGenerateVideo(projectId: string, sceneId: string): Promise<void> {
@@ -315,8 +316,8 @@ async function runGenerateVideo(projectId: string, sceneId: string): Promise<voi
     transitionScene(s, sceneId, "GENERATING");
     s.runtime.totalVideoGenerations += 1;
   });
-  emitScene(projectId, sceneId, `Generating video (attempt ${genIndex})`);
-  emit(projectId, { type: "TOOL_STARTED", actor: "TOOL", sceneId, title: "generate_video" });
+  emitScene(projectId, sceneId, `正在生成视频（第 ${genIndex} 版）`);
+  emit(projectId, { type: "TOOL_STARTED", actor: "TOOL", sceneId, title: "提交视频生成任务" });
 
   const result = await generateSceneVideo({
     projectId,
@@ -338,15 +339,15 @@ async function runGenerateVideo(projectId: string, sceneId: string): Promise<voi
     type: "TOOL_COMPLETED",
     actor: "TOOL",
     sceneId,
-    title: `video ready${result.fromCache ? " (from cache)" : ""}`,
-    detail: `${result.provider}/${result.model}${result.jobId ? ` · job ${result.jobId}` : ""}`,
+    title: `视频就绪${result.fromCache ? "（命中缓存）" : ""}`,
+    detail: `${result.provider}/${result.model}${result.jobId ? ` · 任务 ${result.jobId}` : ""}`,
   });
-  emitScene(projectId, sceneId, "Video generated — awaiting QA");
+  emitScene(projectId, sceneId, "视频已生成——等待质检");
 }
 
 async function runEvaluateScene(projectId: string, sceneId: string): Promise<void> {
   const store = getStore();
-  emit(projectId, { type: "AGENT_STARTED", actor: "CRITIC", sceneId, title: "Multimodal QA" });
+  emit(projectId, { type: "AGENT_STARTED", actor: "CRITIC", sceneId, title: "多模体质检" });
 
   const state = store.get(projectId)!;
   let result: Awaited<ReturnType<typeof evaluateScene>>["result"];
@@ -402,11 +403,11 @@ async function runEvaluateScene(projectId: string, sceneId: string): Promise<voi
     type: "CRITIC_COMPLETED",
     actor: "CRITIC",
     sceneId,
-    title: `${sceneId} scored ${result.score} — ${result.decision}`,
+    title: `${sceneId} 得分 ${result.score} — ${result.decision === "PASS" ? "通过" : "需修复"}`,
     detail: result.issues.map((i) => `${i.severity}: ${i.description}`).join(" | ") || "no issues",
     data: { score: result.score, decision: result.decision, dimensions: result.dimensions, frameUrls },
   });
-  emitScene(projectId, sceneId, result.decision === "PASS" ? "QA PASS — READY" : "QA REPAIR");
+  emitScene(projectId, sceneId, result.decision === "PASS" ? "质检通过——就绪" : "质检需修复");
 }
 
 async function runRepairScene(projectId: string, sceneId: string): Promise<void> {
@@ -441,7 +442,7 @@ async function runRepairScene(projectId: string, sceneId: string): Promise<void>
       type: "REPAIR_STARTED",
       actor: "DIRECTOR",
       sceneId,
-      title: `Repairing ${sceneId} — patching prompt, regenerating this scene only`,
+      title: `修复 ${sceneId}——修补提示词，只重新生成该场景`,
       detail: promptDelta,
     });
     return;
@@ -462,8 +463,8 @@ async function runRepairScene(projectId: string, sceneId: string): Promise<void>
       type: "SCENE_UPDATED",
       actor: "SYSTEM",
       sceneId,
-      title: `${sceneId} forced fallback to library clip`,
-      detail: "Repair budget exhausted; kept the run on track.",
+      title: `${sceneId} 强制降级为素材库片段`,
+      detail: "修复预算已用尽；保证整体运行继续。",
     });
   } else {
     store.update(projectId, (s) => {
@@ -474,8 +475,8 @@ async function runRepairScene(projectId: string, sceneId: string): Promise<void>
       type: "SCENE_UPDATED",
       actor: "SYSTEM",
       sceneId,
-      title: `${sceneId} kept with quality_warning`,
-      detail: "Repair budget exhausted; keeping the second generation.",
+      title: `${sceneId} 保留当前版本并标记质量警告`,
+      detail: "修复预算已用尽；保留第二版生成结果。",
     });
   }
 }
@@ -488,7 +489,7 @@ async function runGenerateVoices(projectId: string): Promise<void> {
   emit(projectId, {
     type: "TOOL_STARTED",
     actor: "TOOL",
-    title: `generate_voice for ${pending.length} scene${pending.length === 1 ? "" : "s"}`,
+    title: `为 ${pending.length} 个场景生成配音`,
   });
 
   for (const scene of pending) {
@@ -506,7 +507,7 @@ async function runGenerateVoices(projectId: string): Promise<void> {
         type: "TOOL_PROGRESS",
         actor: "TOOL",
         sceneId: scene.id,
-        title: "TTS provider failed — falling back to offline voice",
+        title: "TTS 服务不可用——降级为离线语音",
         detail: error instanceof Error ? error.message.slice(0, 120) : String(error),
       });
       const { FakeTtsProvider } = await import("@/lib/providers/fake-tts-provider");
@@ -517,13 +518,13 @@ async function runGenerateVoices(projectId: string): Promise<void> {
     store.update(projectId, (s) => {
       sceneOf(s, scene.id).audioUrl = audioUrl;
     });
-    emit(projectId, { type: "TOOL_COMPLETED", actor: "TOOL", sceneId: scene.id, title: "voiceover ready" });
+    emit(projectId, { type: "TOOL_COMPLETED", actor: "TOOL", sceneId: scene.id, title: "配音就绪" });
   }
 }
 
 async function runComposeVideo(projectId: string): Promise<void> {
   const store = getStore();
-  emit(projectId, { type: "TOOL_STARTED", actor: "TOOL", title: "compose_video: normalize → concat → mix" });
+  emit(projectId, { type: "TOOL_STARTED", actor: "TOOL", title: "合成视频：标准化 → 拼接 → 混音" });
 
   const state = store.get(projectId)!;
   const finalUrl = await composeFinalVideo(projectId, state);
@@ -531,7 +532,7 @@ async function runComposeVideo(projectId: string): Promise<void> {
   store.update(projectId, (s) => {
     s.finalVideoUrl = finalUrl;
   });
-  emit(projectId, { type: "TOOL_COMPLETED", actor: "TOOL", title: "Final MP4 ready", detail: finalUrl });
+  emit(projectId, { type: "TOOL_COMPLETED", actor: "TOOL", title: "最终 MP4 就绪", detail: finalUrl });
 }
 
 async function runFinish(projectId: string): Promise<void> {
@@ -542,7 +543,7 @@ async function runFinish(projectId: string): Promise<void> {
   store.update(projectId, (s) => {
     s.status = state.finalVideoUrl || allReady ? "COMPLETED" : "FAILED";
     if (s.status === "FAILED" && !state.finalVideoUrl) {
-      s.error = { category: "STATE", message: "pipeline stalled before composition" };
+      s.error = { category: "STATE", message: "流水线在合成前停滞" };
     }
     s.runtime.completedAt = new Date().toISOString();
   });
@@ -550,7 +551,7 @@ async function runFinish(projectId: string): Promise<void> {
   emit(projectId, {
     type: "PROJECT_COMPLETED",
     actor: "SYSTEM",
-    title: state.finalVideoUrl ? "Final ad delivered" : "Run finished",
+    title: state.finalVideoUrl ? "最终广告已交付" : "运行结束",
     detail: state.finalVideoUrl,
   });
 }

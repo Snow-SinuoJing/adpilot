@@ -65,7 +65,7 @@ export function policyDecision(view: DirectorView): DirectorDecision {
   const allReady = view.scenes.length > 0 && view.scenes.every((s) => s.status === "READY");
   const reason =
     action === "FINISH" && !allReady
-      ? "No further action is available in the current state."
+      ? "当前状态下没有可执行的下一步。"
       : reasonFor(action, view);
   return DirectorDecisionSchema.parse({ action, sceneId, reason });
 }
@@ -74,35 +74,35 @@ function reasonFor(action: DirectorAction, view: DirectorView): string {
   const product = view.brief.product;
   switch (action) {
     case "CREATE_STRATEGY":
-      return `No creative strategy exists yet for ${product} in ${view.brief.market}.`;
+      return `还没有为 ${product}（${view.brief.market} 市场）建立创意策略。`;
     case "RETRIEVE_ASSET":
-      return `Scene needs footage: searching the asset library before deciding to generate.`;
+      return `场景需要画面：先检索素材库，再决定是否 AI 生成。`;
     case "PLAN_ASSETS":
       return view.generationBudgetLeft
-        ? `Retrieved candidates for a scene with no source decision yet.`
-        : `Generation budget is exhausted — re-planning a pending scene from the asset library.`;
+        ? `有场景已取回候选素材但尚未决策来源。`
+        : `生成额度已用尽——把等待生成的场景改回素材库方案。`;
     case "GENERATE_VIDEO":
-      return `No retrieved asset sufficiently expresses the scene intent — generating dedicated footage.`;
+      return `素材库中没有能表达该场景意图的片段——生成专属画面。`;
     case "EVALUATE_SCENE":
-      return `Generated footage must pass multimodal QA before it can be used.`;
+      return `生成的画面必须先通过多模态质检才能使用。`;
     case "REPAIR_SCENE":
-      return `Critic flagged issues on a scene; repairing only that scene.`;
+      return `评审发现该场景有问题；只修复这一个场景。`;
     case "GENERATE_VOICE":
-      return `All scenes are READY — generating localized voiceover tracks.`;
+      return `所有场景已就绪——生成本地化配音。`;
     case "COMPOSE_VIDEO":
-      return `All scenes and voiceovers are ready — composing the final ad.`;
+      return `画面与配音全部就绪——合成最终广告。`;
     case "FINISH":
-      return `Final ad is ready — wrapping up the project.`;
+      return `最终广告已交付——收尾归档。`;
   }
 }
 
-const SYSTEM = `You are the Creative Director of an agentic ad studio.
-Given a compact project view, choose exactly ONE next action from "allowedActions".
+const SYSTEM = `你是一个智能体广告工作室的创意导演（Creative Director）。
+给定压缩后的项目状态视图，从 "allowedActions" 中选择恰好一个下一步动作。
 
-Rules:
-- sceneId (S1|S2|S3) is required for RETRIEVE_ASSET, PLAN_ASSETS, GENERATE_VIDEO, EVALUATE_SCENE, REPAIR_SCENE; otherwise omit it.
-- "reason" must be one concise, user-visible business sentence explaining why this action is the right next step (e.g. "No retrieved asset sufficiently expresses the transformation scene."). Never expose hidden reasoning.
-- Prefer reusing existing assets when they match; generate only when retrieval cannot express the scene.`;
+规则：
+- RETRIEVE_ASSET、PLAN_ASSETS、GENERATE_VIDEO、EVALUATE_SCENE、REPAIR_SCENE 必须带 sceneId（S1|S2|S3）；其余动作省略 sceneId。
+- "reason" 必须是一句简体中文、用户可见的业务理由，解释为什么这是正确的下一步（例如"素材库中没有能表达消除蜕变场景的片段"）。绝不暴露隐藏推理过程。
+- 素材足够匹配时优先复用素材；只有检索无法表达场景时才生成。`;
 
 export async function decideNextAction(view: DirectorView): Promise<DirectorDecision> {
   if (isMockMode()) return policyDecision(view);

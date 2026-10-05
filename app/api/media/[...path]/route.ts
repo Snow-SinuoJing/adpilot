@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { MEDIA_DIR } from "@/lib/paths";
+import { ASSETS_DIR, MEDIA_DIR } from "@/lib/paths";
 
 export const runtime = "nodejs";
 
@@ -12,14 +12,17 @@ const CONTENT_TYPES: Record<string, string> = {
   ".png": "image/png",
 };
 
-/** Serves everything under data/media (generated videos, frames, voiceovers)
- *  as /api/media/<relative-path>. Path traversal is rejected. */
+/** Serves generated media under data/media as /api/media/<path>, plus the
+ *  asset library under /api/media/assets/<file> (path traversal rejected). */
 export async function GET(_request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const { path: segments } = await params;
   const rel = segments.map(decodeURIComponent).join("/");
-  const abs = path.normalize(path.join(MEDIA_DIR, rel));
 
-  if (!abs.startsWith(path.normalize(MEDIA_DIR) + path.sep)) {
+  const root = segments[0] === "assets" ? ASSETS_DIR : MEDIA_DIR;
+  const relUnderRoot = segments[0] === "assets" ? segments.slice(1).join("/") : rel;
+  const abs = path.normalize(path.join(root, relUnderRoot));
+
+  if (!abs.startsWith(path.normalize(root) + path.sep)) {
     return new Response("forbidden", { status: 403 });
   }
   if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) {

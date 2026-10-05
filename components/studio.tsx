@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ProjectState, RuntimeEvent } from "@/lib/state/schema";
+import { PROJECT_STATUS_ZH, DEMO_MODE_ZH } from "@/lib/i18n";
 import { AgentActivity } from "./agent-activity";
 import { CreativeCanvas } from "./creative-canvas";
 import { FinalVideo } from "./final-video";
 
 /**
- * The three-column studio (design doc §14).
- * Left: brief · Center: creative canvas (3 scene cards) · Right: agent
- * activity timeline rendered purely from the RuntimeEvent SSE stream.
+ * 三栏工作台（设计文档 §14）：
+ * 左：简报 · 中：创意画布（3 张场景卡）· 右：智能体动态（事件流驱动）。
  */
 export function Studio({ projectId, autostart }: { projectId: string; autostart: boolean }) {
   const [state, setState] = useState<ProjectState | null>(null);
@@ -35,11 +35,11 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
     source.onmessage = (message) => {
       const event = JSON.parse(message.data) as RuntimeEvent;
       setEvents((prev) => (prev.some((e) => e.id === event.id) ? prev : [...prev, event]));
-      // events tell us WHEN something changed; the state endpoint says WHAT
+      // 事件告诉我们"何时"变化；状态接口告诉我们"变成了什么"
       void refreshState();
     };
     source.onerror = () => {
-      // SSE dropped (e.g. dev server restart): state refetch keeps UI sane
+      // SSE 断开（如开发服务器重启）：重拉状态保证界面一致
       void refreshState();
     };
     return () => source.close();
@@ -56,9 +56,9 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
     return (
       <div className="grid min-h-screen place-items-center">
         <div className="text-center">
-          <p className="text-lg font-semibold">Project not found</p>
+          <p className="text-lg font-semibold">项目不存在</p>
           <Link href="/" className="mt-2 inline-block text-sm text-indigo-400 hover:underline">
-            ← back to brief
+            ← 返回首页
           </Link>
         </div>
       </div>
@@ -66,33 +66,39 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
   }
 
   if (!state) {
-    return <div className="grid min-h-screen place-items-center text-zinc-500">Loading project…</div>;
+    return <div className="grid min-h-screen place-items-center text-zinc-500">加载项目中…</div>;
   }
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
         <div className="flex items-center gap-3">
-          <Link href="/" className="grid size-8 place-items-center rounded-lg bg-indigo-500 font-black text-white">A</Link>
+          <Link href="/" className="grid size-8 place-items-center rounded-lg bg-indigo-500 font-black text-white" title="返回首页">A</Link>
           <span className="font-bold tracking-tight">AdPilot</span>
           <span className="text-zinc-600">/</span>
           <span className="text-sm text-zinc-400">
-            Project: {state.brief.productName} · {state.brief.market}
+            项目：{state.brief.productName} · {state.brief.market}
           </span>
         </div>
-        <div className="flex shrink-0 items-center gap-3 text-xs">
+        <div className="flex shrink-0 items-center gap-2.5 text-xs">
           <StatusPill status={state.status} />
           {state.runtime.demoMode && (
             <span className={`rounded-full px-2.5 py-1 font-medium ${state.runtime.demoMode === "replay" ? "bg-amber-500/15 text-amber-300" : "bg-zinc-800 text-zinc-400"}`}>
-              {state.runtime.demoMode === "replay" ? "Replay of previous real run" : state.runtime.demoMode}
+              {DEMO_MODE_ZH[state.runtime.demoMode] ?? state.runtime.demoMode}
             </span>
           )}
+          <Link href="/assets" className="rounded-lg border border-zinc-700 px-2.5 py-1 text-zinc-300 hover:border-zinc-500">
+            素材库
+          </Link>
+          <Link href="/" className="rounded-lg bg-indigo-500/90 px-2.5 py-1 font-medium text-white hover:bg-indigo-400">
+            ＋ 新建广告
+          </Link>
         </div>
       </header>
 
       <main className="grid flex-1 grid-cols-12 items-start gap-4 p-4">
         <section className="col-span-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-300">Brief</h2>
+          <h2 className="mb-3 text-sm font-semibold text-zinc-300">广告简报</h2>
           <BriefPanel state={state} />
         </section>
 
@@ -101,7 +107,7 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
         </section>
 
         <section className="col-span-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-300">Agent Activity</h2>
+          <h2 className="mb-3 text-sm font-semibold text-zinc-300">智能体动态</h2>
           <AgentActivity events={events} />
         </section>
       </main>
@@ -113,11 +119,11 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
 
 function BriefPanel({ state }: { state: ProjectState }) {
   const rows: Array<[string, string]> = [
-    ["Product", state.brief.productName],
-    ["Market", state.brief.market],
-    ["Audience", state.brief.audience],
-    ["Platform", state.brief.platform],
-    ["Duration", `${state.brief.durationSec}s`],
+    ["产品", state.brief.productName],
+    ["市场", state.brief.market],
+    ["受众", state.brief.audience],
+    ["平台", state.brief.platform],
+    ["时长", `${state.brief.durationSec} 秒`],
   ];
   return (
     <dl className="space-y-2.5 text-sm">
@@ -128,7 +134,7 @@ function BriefPanel({ state }: { state: ProjectState }) {
         </div>
       ))}
       <div>
-        <dt className="text-xs font-medium text-zinc-500">Description</dt>
+        <dt className="text-xs font-medium text-zinc-500">描述</dt>
         <dd className="text-xs leading-relaxed text-zinc-400">{state.brief.productDescription}</dd>
       </div>
       {state.error && (
@@ -153,6 +159,8 @@ function StatusPill({ status }: { status: ProjectState["status"] }) {
     FAILED: "bg-red-500/15 text-red-300",
   };
   return (
-    <span className={`rounded-full px-2.5 py-1 font-medium ${styles[status]}`}>{status}</span>
+    <span className={`rounded-full px-2.5 py-1 font-medium ${styles[status]}`}>
+      {PROJECT_STATUS_ZH[status]}
+    </span>
   );
 }

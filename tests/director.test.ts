@@ -109,7 +109,7 @@ describe("bounded action space (P1)", () => {
     const decision = policyDecision(directorView(state, FULL_CAPS));
     expect(decision.action).toBe("REPAIR_SCENE");
     expect(decision.sceneId).toBe("S2");
-    expect(decision.reason).toMatch(/\./);
+    expect(decision.reason).toMatch(/。/);
   });
 
   it("caps: generation blocked at the total limit; steps bounded", () => {
@@ -164,7 +164,7 @@ describe("bounded action space (P1)", () => {
     const decision = policyDecision(directorView(state, FULL_CAPS));
     expect(decision.action).toBe("PLAN_ASSETS");
     expect(decision.sceneId).toBe("S3");
-    expect(decision.reason).toMatch(/re-planning|budget/i);
+    expect(decision.reason).toMatch(/生成额度已用尽|素材库/);
   });
 
   it("all-ready + composed → FINISH only", () => {
