@@ -8,7 +8,14 @@ export interface AssetEntry {
   description: string;
   tags: string[];
   durationSec: number;
-  origin?: "builtin" | "upload";
+  origin?: "builtin" | "upload" | "segment";
+  /** segmented parents are excluded from search (their children cover them) */
+  hasSegments?: boolean;
+  analysis?: "done" | "pending";
+  /** segment children only */
+  parentFile?: string;
+  startTime?: number;
+  endTime?: number;
 }
 
 export function readLibrary(): AssetEntry[] {

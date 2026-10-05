@@ -15,7 +15,9 @@ import { enforceVerdict } from "@/lib/agents/critic";
 import { CriticResultSchema, type CriticResult } from "@/lib/state/schema";
 
 // search-assets reads the library at call time → write metadata into tmp dir
-import { searchAssets } from "@/lib/tools/search-assets";
+import { searchAssets, MATCH_THRESHOLD } from "@/lib/tools/search-assets";
+import { buildSegments, MIN_SEGMENT_SEC, MAX_SEGMENT_SEC } from "@/lib/tools/analyze-asset";
+import { buildSegmentCutArgs } from "@/lib/runtime/orchestrator";
 
 beforeAll(() => {
   fs.mkdirSync(path.join(TEST_DATA_DIR, "assets"), { recursive: true });
@@ -27,6 +29,46 @@ beforeAll(() => {
       { id: "asset_003", file: "c.mp4", description: "city timelapse night traffic", tags: ["city", "night"], durationSec: 6 },
     ]),
   );
+});
+
+describe("asset understanding: long-clip segmentation", () => {
+  it("merges tiny shots into the previous segment", () => {
+    const segments = buildSegments([3.2, 3.8, 10], 12);
+    expect(segments).toEqual([
+      { start: 0, end: 3.8 },
+      { start: 3.8, end: 10 },
+      { start: 10, end: 12 },
+    ]);
+  });
+
+  it("splits one long take into equal parts", () => {
+    const segments = buildSegments([], 40);
+    expect(segments).toHaveLength(3);
+    expect(segments[0].end - segments[0].start).toBeCloseTo(40 / 3, 1);
+  });
+
+  it("caps absurdly long takes at 4 parts", () => {
+    expect(buildSegments([], 300)).toHaveLength(4);
+  });
+
+  it("never emits sub-minimum segments", () => {
+    for (const segments of [buildSegments([1, 1.2, 1.5], 30), buildSegments([0.6], 8)]) {
+      for (const s of segments) expect(s.end - s.start).toBeGreaterThanOrEqual(MIN_SEGMENT_SEC);
+    }
+    expect(MAX_SEGMENT_SEC).toBe(15);
+    expect(MATCH_THRESHOLD).toBeLessThanOrEqual(0.25); // 匹配机制放宽（用户反馈 #2）
+  });
+});
+
+describe("segment attach: frame-accurate cut args", () => {
+  it("cuts by start/end with re-encode for accuracy", () => {
+    const args = buildSegmentCutArgs({ source: "a.mp4", startTime: 12.5, endTime: 18, dest: "out.mp4" });
+    const joined = args.join(" ");
+    expect(args[args.indexOf("-ss") + 1]).toBe("12.5");
+    expect(args[args.indexOf("-to") + 1]).toBe("18");
+    expect(joined).toContain("-c:v libx264");
+    expect(joined).toContain("+faststart");
+  });
 });
 
 describe("search_assets ranking (doc §15 demo design)", () => {

@@ -7,6 +7,17 @@ import { runFfmpeg, probeDurationSec, FFPROBE_BIN } from "@/lib/ffmpeg";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readLibrary, writeLibrary } from "@/lib/assets-library";
+import { analyzeAssetInBackground } from "@/lib/tools/analyze-asset";
+
+async function analyzeAssetInBackgroundQueue(ids: string[]): Promise<void> {
+  for (const id of ids) {
+    try {
+      await analyzeAssetInBackground(id);
+    } catch (error) {
+      console.warn(`[analyze] ${id} failed:`, error);
+    }
+  }
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -91,10 +102,21 @@ export async function POST(request: Request) {
       tags: ["uploaded", "上传", orientation],
       durationSec,
       origin: "upload",
+      // 长素材后台自动拆分分析（镜头检测 + 视觉描述），短素材无需拆分
+      ...(durationSec > 12 ? { analysis: "pending" as const } : {}),
     });
     added.push(id);
   }
 
   writeLibrary(library);
-  return NextResponse.json({ added, total: library.length }, { status: 201 });
+
+  const toAnalyze = library.filter((a) => a.analysis === "pending" && a.origin === "upload").map((a) => a.id);
+  if (toAnalyze.length > 0) {
+    void analyzeAssetInBackgroundQueue(toAnalyze);
+  }
+
+  return NextResponse.json(
+    { added, total: library.length, analyzing: toAnalyze.length },
+    { status: 201 },
+  );
 }

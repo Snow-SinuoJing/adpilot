@@ -98,6 +98,9 @@ export const AssetCandidateSchema = z.object({
   tags: z.array(z.string()),
   durationSec: z.number().positive(),
   score: z.number().min(0).max(1),
+  /** Segment candidates: cut window inside the parent video file */
+  startTime: z.number().min(0).optional(),
+  endTime: z.number().min(0).optional(),
 });
 export type AssetCandidate = z.infer<typeof AssetCandidateSchema>;
 
@@ -142,6 +145,10 @@ export const RepairRecordSchema = z.object({
   previousScore: z.number(),
   newScore: z.number().optional(),
   outcome: z.enum(["PENDING", "IMPROVED", "FALLBACK", "NO_IMPROVEMENT"]),
+  /** Version-comparison data: the rejected cut and why (design doc §13, transparent repair) */
+  previousVideoUrl: z.string().optional(),
+  issues: z.array(CriticIssueSchema).optional(),
+  previousDimensions: CriticDimensionsSchema.optional(),
 });
 export type RepairRecord = z.infer<typeof RepairRecordSchema>;
 

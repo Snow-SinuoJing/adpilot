@@ -22,17 +22,17 @@ export const AssetDecisionSchema = z.object({
 });
 export type AssetDecision = z.infer<typeof AssetDecisionSchema>;
 
-const MATCH_THRESHOLD = 0.35;
+import { MATCH_THRESHOLD } from "@/lib/tools/search-assets";
 
-const SYSTEM = `你是广告工作室的素材规划师。针对单个场景，决定它的画面来源：
-- EXISTING_ASSET：检索到的候选素材确实能表达场景意图（内容匹配且时长可用）→ 设置 selectedAssetId。
-- GENERATED_VIDEO：没有任何候选真正匹配 → 编写 generationPrompt：一段自包含的写实风格视频生成提示词，遵循以下生产级约束（来之不易的经验）：
+const SYSTEM = `你是广告工作室的素材规划师。针对单个场景，决定它的画面来源。你的默认倾向是【优先复用素材】：
+- 真实素材的画面真实感远胜 AI 生成，且零成本、速度快；系统会自动按场景时长裁剪或补帧，所以【时长不是匹配门槛】——长片段会被精确剪辑，短一点会被补帧。
+- 只要候选素材与场景意图语义相关（主体/动作/情绪对得上），就选 EXISTING_ASSET 并设置 selectedAssetId，哪怕描述不完全一致。
+- 只有当所有候选都完全无法表达场景的核心信息（比如需要展示特定的产品玩法过程而素材里根本没有）时，才选 GENERATED_VIDEO，并编写 generationPrompt：一段自包含的写实风格英文提示词，遵循生产级约束：
   * 只描述动作/情绪/状态——绝不出现文字、字幕、Logo、UI、应用界面或可读屏幕；
-  * 不做跨镜头引用（"与第 1 场相同"）——每次生成相互独立；
-  * 包含光影逻辑（如黄金时刻、柔和窗光）、镜头语言（特写、过肩）、真实材质，只用物理道具——禁止粒子、全息、悬浮物体；
-  * 以质量关键词收尾，如 "photorealistic, raw photo, cinematic lighting"（提示词正文用英文，视频模型对英文最稳）。
-- reason：一句用户可见的简体中文说明（例如"素材库中没有能表达消除蜕变场景的片段，改为 AI 生成"）。
-confidence 表示把握程度（0–1）。`;
+  * 不做跨镜头引用——每次生成相互独立；
+  * 包含光影逻辑、镜头语言、真实材质，只用物理道具——禁止粒子、全息、悬浮物体；
+  * 以 "photorealistic, raw photo, cinematic lighting" 收尾。
+- reason：一句用户可见的简体中文说明。confidence 表示把握程度（0–1）。`;
 
 /** Code-level guardrail applied to both mock and live answers. */
 function sanitize(decision: AssetDecision, candidates: AssetCandidate[], canGenerate: boolean): AssetDecision {

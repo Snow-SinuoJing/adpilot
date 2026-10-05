@@ -50,18 +50,64 @@ export function SceneDetail({ scene }: { scene: SceneState }) {
         </Block>
       )}
       {scene.repairHistory.length > 0 && (
-        <Block label="修复历史">
-          <ul className="space-y-1">
+        <Block label="修复版本对比">
+          <div className="space-y-2">
             {scene.repairHistory.map((record) => (
-              <li key={record.attempt} className="rounded bg-zinc-800/70 p-1.5">
-                <p className="font-semibold text-amber-300">
-                  第 {record.attempt} 次修复 · {record.previousScore} → {record.newScore ?? "…"}（
+              <div key={record.attempt} className="rounded-lg bg-zinc-800/70 p-2">
+                <p className="mb-1.5 font-semibold text-amber-300">
+                  第 {record.attempt} 次修复 · {record.previousScore} 分
+                  <span className="mx-1 text-zinc-500">→</span>
+                  {record.newScore ?? "…"} 分（
                   {record.outcome === "IMPROVED" ? "改善" : record.outcome === "NO_IMPROVEMENT" ? "无改善" : record.outcome === "FALLBACK" ? "降级" : "进行中"}）
                 </p>
-                <p className="text-zinc-400">提示词增量：{record.promptDelta}</p>
-              </li>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="mb-1 text-[10px] font-bold text-red-300">修复前（被打回的版本）</p>
+                    {record.previousVideoUrl ? (
+                      <video
+                        src={record.previousVideoUrl}
+                        className="aspect-[9/16] w-full rounded bg-black object-cover"
+                        controls
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                    ) : (
+                      <p className="text-[10px] text-zinc-500">（旧数据未保留第一版视频）</p>
+                    )}
+                    {record.issues && record.issues.length > 0 && (
+                      <ul className="mt-1 space-y-0.5">
+                        {record.issues.map((issue, i) => (
+                          <li key={i} className={issue.severity === "high" ? "text-[10px] text-red-300" : "text-[10px] text-zinc-400"}>
+                            [{issue.severity === "high" ? "严重" : issue.severity === "medium" ? "中等" : "轻微"}] {issue.description}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <p className="mb-1 text-[10px] font-bold text-emerald-300">修复后（当前版本）</p>
+                    {scene.videoUrl ? (
+                      <video
+                        src={scene.videoUrl}
+                        className="aspect-[9/16] w-full rounded bg-black object-cover"
+                        controls
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                    ) : (
+                      <p className="text-[10px] text-zinc-500">（重新生成中…）</p>
+                    )}
+                    <p className="mt-1 rounded bg-zinc-900/80 p-1.5 text-[10px] leading-relaxed text-zinc-400">
+                      <span className="font-bold text-amber-300">修复动作（提示词增量）：</span>
+                      {record.promptDelta}
+                    </p>
+                  </div>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         </Block>
       )}
     </div>

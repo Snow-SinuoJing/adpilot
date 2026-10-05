@@ -70,6 +70,9 @@ describe("e2e offline demo run", () => {
     expect(s2.repairHistory[0].previousScore).toBe(64);
     expect(s2.repairHistory[0].newScore).toBe(88);
     expect(s2.repairHistory[0].outcome).toBe("IMPROVED");
+    // 版本对比数据：保留第一版视频与打回原因（用户反馈 #3）
+    expect(s2.repairHistory[0].previousVideoUrl).toMatch(/S2-gen1\.mp4$/);
+    expect((s2.repairHistory[0].issues ?? []).length).toBeGreaterThan(0);
     expect(s2.qa?.score).toBe(88);
     expect(s2.qa?.decision).toBe("PASS");
     expect(s2.generationPrompt).toContain("[repair 1]");

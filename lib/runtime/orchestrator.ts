@@ -9,6 +9,7 @@ import { decideNextAction, policyDecision } from "@/lib/agents/director";
 import { createStrategy } from "@/lib/agents/strategy";
 import { planAsset } from "@/lib/agents/asset-planner";
 import { searchAssets } from "@/lib/tools/search-assets";
+import { runFfmpeg } from "@/lib/ffmpeg";
 import { generateSceneVideo } from "@/lib/tools/generate-video";
 import { evaluateScene } from "@/lib/tools/evaluate-scene";
 import { generateSceneVoice } from "@/lib/tools/generate-voice";
@@ -288,17 +289,47 @@ async function runPlanAssets(projectId: string, sceneId: string, deps: Orchestra
   }
 }
 
-/** Copy the chosen library clip into the project media dir and mark READY. */
+/** Pure: cut args for a segment candidate (frame-accurate re-encode). */
+export function buildSegmentCutArgs(input: {
+  source: string;
+  startTime: number;
+  endTime: number;
+  dest: string;
+}): string[] {
+  return [
+    "-ss", String(input.startTime),
+    "-to", String(input.endTime),
+    "-i", input.source,
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", "20",
+    "-pix_fmt", "yuv420p",
+    "-movflags", "+faststart",
+    input.dest,
+  ];
+}
+
+/** Attach the chosen library clip (whole or segment) and mark READY.
+ *  ffmpeg side effects stay outside the store mutator. */
 async function attachExistingAsset(projectId: string, sceneId: string): Promise<void> {
   const store = getStore();
+  const cuts: Array<{ source: string; startTime: number; endTime: number; dest: string }> = [];
   store.update(projectId, (s) => {
     const scene = sceneOf(s, sceneId);
-    if (!scene.selectedAsset) throw new Error(`no selected asset for ${sceneId}`);
+    const asset = scene.selectedAsset;
+    if (!asset) throw new Error(`no selected asset for ${sceneId}`);
     const dest = mediaFile(projectId, `${sceneId}-existing.mp4`);
-    fs.copyFileSync(scene.selectedAsset.path, dest);
+    if (asset.startTime !== undefined && asset.endTime !== undefined) {
+      cuts.push({ source: asset.path, startTime: asset.startTime, endTime: asset.endTime, dest });
+    } else {
+      fs.copyFileSync(asset.path, dest);
+    }
     scene.videoUrl = urlForMedia(dest);
     transitionScene(s, sceneId, "READY");
   });
+  for (const cut of cuts) {
+    await runFfmpeg(buildSegmentCutArgs(cut));
+  }
   emitScene(projectId, sceneId, "已挂载素材库片段——就绪");
 }
 
@@ -428,6 +459,10 @@ async function runRepairScene(projectId: string, sceneId: string): Promise<void>
         promptDelta,
         previousScore: qa.score,
         outcome: "PENDING",
+        // 保留第一版视频与打回原因，供 UI 做修复前后对比（用户反馈 #3）
+        previousVideoUrl: target.videoUrl,
+        issues: qa.issues,
+        previousDimensions: qa.dimensions,
       });
       target.generationPrompt = `${target.generationPrompt ?? ""}\n[repair ${target.repairHistory.length}] ${promptDelta}`.trim();
       // invalidate the failed footage so the loop regenerates this scene

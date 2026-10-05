@@ -2,23 +2,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { AssetCandidateSchema, type AssetCandidate } from "@/lib/state/schema";
 import { ASSETS_DIR } from "@/lib/paths";
+import { readLibrary, type AssetEntry } from "@/lib/assets-library";
 
 /**
- * search_assets (design doc §8.1).
- * Small local library, explainable scoring: tag overlap + lexical overlap
- * between the scene intent and asset metadata. Deliberately no vector DB.
+ * search_assets（设计文档 §8.1，按用户反馈 #2 放宽）：
+ * - 检索池 = 未拆分的完整素材 + 全部自动切片（切片有时长与内容双重精度）
+ * - 时长不作为硬性门槛：系统会自动裁剪/补帧，仅轻微偏好接近的片段
+ * - 词法重叠（中英双语）+ 用途标签加成决定内容匹配
  */
 
-interface AssetMetadata {
-  id: string;
-  file: string;
-  description: string;
-  tags: string[];
-  durationSec: number;
-}
+/** Content threshold: below this the planner treats retrieval as a real miss.
+ *  Deliberately lenient — reuse beats generation on cost, speed and realism. */
+export const MATCH_THRESHOLD = 0.22;
 
-/** CJK-aware tokenizer: latin words (≥3 chars) + every CJK char as a token,
- *  so Chinese scene intents still match a bilingual tag library. */
 function tokenize(text: string): Set<string> {
   const tokens = new Set<string>();
   for (const word of text.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []) {
@@ -30,7 +26,7 @@ function tokenize(text: string): Set<string> {
   return tokens;
 }
 
-function scoreAsset(query: { intent: string; purpose: string }, asset: AssetMetadata): number {
+function scoreAsset(query: { intent: string; purpose: string }, asset: AssetEntry): number {
   const queryTokens = tokenize(`${query.intent} ${query.purpose}`);
   const assetTokens = tokenize(`${asset.description} ${asset.tags.join(" ")}`);
   if (queryTokens.size === 0) return 0;
@@ -44,8 +40,9 @@ function scoreAsset(query: { intent: string; purpose: string }, asset: AssetMeta
   const purposeTag = `purpose:${query.purpose.toLowerCase()}`;
   const tagBonus = asset.tags.includes(purposeTag) ? 0.25 : 0;
 
-  const durationIdeal = 5;
-  const durationPenalty = Math.min(Math.abs(asset.durationSec - durationIdeal) / 20, 0.15);
+  // duration is a soft preference, never a gate (compose trims or pads)
+  const distance = Math.abs(asset.durationSec - 5);
+  const durationPenalty = Math.min(distance / 60, 0.08);
 
   return Math.max(0, Math.min(1, lexical * 0.8 + tagBonus - durationPenalty));
 }
@@ -55,27 +52,27 @@ export function searchAssets(input: { query: string; purpose: string; topK?: num
   if (!fs.existsSync(libraryFile)) return [];
 
   const raw: unknown = JSON.parse(fs.readFileSync(libraryFile, "utf8"));
-  const library = (Array.isArray(raw) ? raw : []).map((entry) =>
-    AssetCandidateSchema.parse({
-      ...(entry as AssetMetadata),
-      path: path.join(ASSETS_DIR, (entry as AssetMetadata).file),
-      score: 0,
-    }),
-  );
+  const entries = (Array.isArray(raw) ? raw : []) as AssetEntry[];
+  const searchable = entries.filter((e) => !e.hasSegments);
 
-  const scored = library.map((asset) => ({
-    asset,
-    score: scoreAsset({ intent: input.query, purpose: input.purpose }, {
-      id: asset.id,
-      file: path.basename(asset.path),
-      description: asset.description,
-      tags: asset.tags,
-      durationSec: asset.durationSec,
-    }),
-  }));
+  const scored = searchable
+    .map((asset) => ({ asset, score: scoreAsset({ intent: input.query, purpose: input.purpose }, asset) }))
+    .filter(({ score }) => score > 0.01);
 
   return scored
     .sort((a, b) => b.score - a.score)
     .slice(0, input.topK ?? 3)
-    .map(({ asset, score }) => AssetCandidateSchema.parse({ ...asset, score: Math.round(score * 100) / 100 }));
+    .map(({ asset, score }) =>
+      AssetCandidateSchema.parse({
+        id: asset.id,
+        path: path.join(ASSETS_DIR, asset.file),
+        description: asset.description,
+        tags: asset.tags,
+        durationSec: asset.durationSec,
+        score: Math.round(score * 100) / 100,
+        ...(asset.startTime !== undefined && asset.endTime !== undefined
+          ? { startTime: asset.startTime, endTime: asset.endTime }
+          : {}),
+      }),
+    );
 }
