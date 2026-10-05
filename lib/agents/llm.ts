@@ -165,13 +165,16 @@ export async function runStructured<T>(opts: StructuredRunOptions<T>): Promise<T
   throw new Error(`model call failed after retry: ${String(lastError)}`);
 }
 
-/** Multimodal turn with image inputs (frames for the Critic). */
+/** Multimodal turn with image inputs (frames for the Critic).
+ *  model override: 素材分析用高精度模型（ANALYSIS_VISION_MODEL），
+ *  评审用快速模型（LLM_VISION_MODEL）——速度与精度分工。 */
 export async function runVision<T>(opts: {
   name: string;
   system: string;
   user: string;
   images: Array<{ dataUrl: string }>;
   schema: z.ZodType<T>;
+  model?: string;
 }): Promise<T> {
   const config = llmConfig();
   const content: Array<Record<string, unknown>> = [
@@ -181,7 +184,7 @@ export async function runVision<T>(opts: {
 
   const request = (jsonMode: boolean) =>
     client(config).chat.completions.create({
-      model: config.visionModel,
+      model: opts.model ?? config.visionModel,
       messages: [
         { role: "system", content: `${opts.system}${jsonMode ? "" : "\n\nOutput ONLY a valid JSON object."}` },
         { role: "user", content: content as never },

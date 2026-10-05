@@ -12,6 +12,7 @@ import { clampWindow } from "@/lib/tools/segment-refine";
 import { buildFakeVideoArgs as buildFakeArgsAspect } from "@/lib/providers/fake-video-provider";
 import { frameTimestamps } from "@/lib/tools/extract-frames";
 import { estimateSpeechSec, silentTrackArgs } from "@/lib/providers/fake-tts-provider";
+import { voiceForLocale } from "@/lib/providers/minimax-tts-provider";
 import { buildFakeVideoArgs } from "@/lib/providers/fake-video-provider";
 import { enforceVerdict } from "@/lib/agents/critic";
 import { CriticResultSchema, type CriticResult } from "@/lib/state/schema";
@@ -206,6 +207,17 @@ describe("ffmpeg command builders", () => {
     const args = buildFakeVideoArgs({ dest: "f.mp4", durationSec: 5, labelLines: ["AI GENERATED (fake provider)", "photorealistic cascade"], seedText: "s" });
     expect(args.join(" ")).toContain("gradients=size=1080x1920");
     expect(args.join(" ")).not.toContain("' unclosed");
+  });
+});
+
+describe("tts voice per language (用户反馈 #4)", () => {
+  it("maps locales to voices with env override priority", () => {
+    expect(voiceForLocale("zh")).toBe("male-qn-qingse");
+    expect(voiceForLocale("en")).toBe("Friendly_Person");
+    expect(voiceForLocale("pt")).toBe("Friendly_Person");
+    process.env.MINIMAX_TTS_VOICE_yue = "Cantonese_Voice";
+    expect(voiceForLocale("yue")).toBe("Cantonese_Voice");
+    delete process.env.MINIMAX_TTS_VOICE_yue;
   });
 });
 

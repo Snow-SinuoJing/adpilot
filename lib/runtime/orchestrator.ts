@@ -732,6 +732,7 @@ async function runGenerateVoices(projectId: string): Promise<void> {
         projectId,
         sceneId: scene.id,
         text: scene.voiceover!,
+        locale: state.brief.language ?? "en",
       });
     } catch (error) {
       // 降级不死机：TTS 故障不能毁掉拍完的 run

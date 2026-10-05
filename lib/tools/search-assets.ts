@@ -69,6 +69,18 @@ export function searchAssets(input: { query: string; purpose: string; topK?: num
   const entries = (Array.isArray(raw) ? raw : []) as AssetEntry[];
   const searchable = entries.filter((e) => !e.hasSegments);
 
+  // 子切片继承父素材描述的词元（用户常用产品名命名文件 → 传导给切片）
+  const parentTokens = new Map<string, Set<string>>();
+  for (const entry of entries) {
+    if (!entry.parentFile) parentTokens.set(entry.file, tokenize(entry.description));
+  }
+  const tokensOf = (asset: AssetEntry): Set<string> => {
+    const own = tokenize(`${asset.description} ${asset.tags.join(" ")}`);
+    const inherited = parentTokens.get(asset.file);
+    if (!inherited) return own;
+    return new Set([...own, ...inherited]);
+  };
+
   // 产品锚定的两半（用户反馈 #4）：命中产品名的素材强加成；只要库里存在
   // 产品命中的素材，产品不符的素材再强惩罚。Tile Blitz 演示库没有产品
   // 命中素材 → 惩罚不启用，演示剧本不受影响。
@@ -76,7 +88,7 @@ export function searchAssets(input: { query: string; purpose: string; topK?: num
     if (!input.product) return false;
     const productTokens = [...tokenize(input.product)];
     if (productTokens.length === 0) return false;
-    const assetTokens = tokenize(`${asset.description} ${asset.tags.join(" ")}`);
+    const assetTokens = tokensOf(asset);
     const hits = productTokens.filter((t) => assetTokens.has(t)).length;
     return hits / productTokens.length >= 0.5;
   };
@@ -89,7 +101,7 @@ export function searchAssets(input: { query: string; purpose: string; topK?: num
         scoreAsset({ intent: input.query, purpose: input.purpose, product: input.product }, asset) *
         (anyProductHit && !productHit(asset) ? 0.35 : 1),
     }))
-    .filter(({ score }) => score > 0.01);
+    .filter(({ score }) => score >= 0.15); // 弱分候选是噪声，宁缺毋滥交给规划器
 
   return scored
     .sort((a, b) => b.score - a.score)

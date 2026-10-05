@@ -41,6 +41,15 @@ export function silentTrackArgs(durationSec: number, outPath: string): string[] 
   ];
 }
 
+/** macOS `say` 系统语音（缺失时回退系统默认声音）。 */
+export const SAY_VOICE_BY_LOCALE: Record<string, string> = {
+  zh: "Tingting",
+  yue: "Sinji",
+  en: "Samantha",
+  pt: "Luciana",
+  es: "Mónica",
+};
+
 export class FakeTtsProvider implements TTSProvider {
   readonly name = "fake";
 
@@ -50,7 +59,9 @@ export class FakeTtsProvider implements TTSProvider {
     if (await hasSay()) {
       const tmpDir = ensureDir(path.join(os.tmpdir(), "adpilot-fake-tts"));
       const aiff = path.join(tmpDir, `${path.basename(input.outPath, ".mp3")}.aiff`);
-      await execFileAsync("say", ["-o", aiff, input.text]);
+      const sayVoice = SAY_VOICE_BY_LOCALE[input.locale ?? "en"];
+      const sayArgs = sayVoice ? ["-v", sayVoice, "-o", aiff, input.text] : ["-o", aiff, input.text];
+      await execFileAsync("say", sayArgs);
       await runFfmpeg(["-i", aiff, "-c:a", "libmp3lame", "-b:a", "128k", input.outPath]);
       return;
     }

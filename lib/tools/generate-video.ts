@@ -116,8 +116,8 @@ export async function pollVideoJob(
 
 /** Submit with exponential retry for transient 5xx-class failures. */
 async function submitWithRetry(
-  provider: { submit(input: { prompt: string; durationSec: number; aspectRatio: "9:16" | "16:9" }): Promise<{ jobId: string }> },
-  input: { prompt: string; durationSec: number; aspectRatio: "9:16" | "16:9" },
+  provider: { submit(input: { prompt: string; durationSec: number; aspectRatio: "9:16" | "16:9"; nonce?: string }): Promise<{ jobId: string }> },
+  input: { prompt: string; durationSec: number; aspectRatio: "9:16" | "16:9"; nonce?: string },
   onProgress?: ProgressFn,
 ): Promise<string> {
   let lastError: unknown;
@@ -186,6 +186,7 @@ export async function generateSceneVideo(request: SceneVideoRequest): Promise<Sc
     prompt: request.prompt,
     durationSec: request.durationSec,
     aspectRatio: aspect,
+    nonce: `${request.sceneId}-gen${request.generationIndex}`,
   }, request.onProgress);
   request.onProgress?.(`任务已受理：${jobId}`, { jobId });
 

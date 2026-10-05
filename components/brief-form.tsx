@@ -14,6 +14,7 @@ const EMPTY_FORM = {
   platform: "TikTok" as AdBrief["platform"],
   durationSec: 15 as AdBrief["durationSec"],
   aspectRatio: "9:16" as NonNullable<AdBrief["aspectRatio"]>,
+  language: "zh" as NonNullable<AdBrief["language"]>,
   additionalRequirement: "",
 };
 
@@ -62,6 +63,7 @@ export function BriefForm() {
       platform: DEMO_BRIEF.platform,
       durationSec: DEMO_BRIEF.durationSec,
       aspectRatio: DEMO_BRIEF.aspectRatio ?? "9:16",
+      language: DEMO_BRIEF.language ?? "zh",
       additionalRequirement: DEMO_BRIEF.additionalRequirement ?? "",
     });
     setError(null);
@@ -79,6 +81,7 @@ export function BriefForm() {
         platform: form.platform,
         durationSec: form.durationSec,
         aspectRatio: form.aspectRatio,
+        language: form.language,
         ...(form.additionalRequirement.trim() ? { additionalRequirement: form.additionalRequirement.trim() } : {}),
       };
 
@@ -169,6 +172,19 @@ export function BriefForm() {
             <select className={inputClass} value={form.durationSec} onChange={(e) => set("durationSec", Number(e.target.value) as AdBrief["durationSec"])}>
               <option value={15}>15 秒</option>
               <option value={20}>20 秒</option>
+            </select>
+          </Field>
+          <Field label="配音语言">
+            <select
+              className={inputClass}
+              value={form.language}
+              onChange={(e) => set("language", e.target.value as NonNullable<AdBrief["language"]>)}
+            >
+              <option value="zh">中文普通话</option>
+              <option value="yue">粤语</option>
+              <option value="en">英语</option>
+              <option value="pt">葡萄牙语</option>
+              <option value="es">西班牙语</option>
             </select>
           </Field>
           <Field label="画幅" className="col-span-2">

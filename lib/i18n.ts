@@ -63,6 +63,14 @@ export const DEMO_MODE_ZH: Record<string, string> = {
   replay: "回放（真实运行录制）",
 };
 
+export const LANGUAGE_ZH: Record<string, string> = {
+  zh: "中文普通话",
+  yue: "粤语",
+  en: "英语",
+  pt: "葡萄牙语",
+  es: "西班牙语",
+};
+
 export const DIMENSION_ZH: Record<string, string> = {
   intentAlignment: "意图一致性",
   visualQuality: "画面质量",

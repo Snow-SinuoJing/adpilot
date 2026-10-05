@@ -69,6 +69,7 @@ export const AdBriefSchema = z.object({
   platform: z.enum(["TikTok", "Reels", "Shorts"]),
   durationSec: z.union([z.literal(15), z.literal(20)]),
   aspectRatio: z.enum(["9:16", "16:9"]).optional(),
+  language: z.enum(["zh", "yue", "en", "pt", "es"]).optional(),
   additionalRequirement: z.string().optional(),
 });
 export type AdBrief = z.infer<typeof AdBriefSchema>;

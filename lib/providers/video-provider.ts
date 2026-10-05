@@ -12,6 +12,9 @@ export interface VideoSubmitInput {
   prompt: string;
   durationSec: number;
   aspectRatio: "9:16" | "16:9";
+  /** diversity nonce (sceneId + attempt) — keeps first-frame seeds and
+   *  therefore outputs distinct when two scenes share similar prompts */
+  nonce?: string;
 }
 
 export type VideoJobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";

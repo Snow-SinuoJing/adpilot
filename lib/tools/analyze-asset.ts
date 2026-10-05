@@ -94,10 +94,13 @@ async function captionSegment(
   const b64 = fs.readFileSync(framePath).toString("base64");
   const result = await runVision({
     name: "素材切片描述",
-    system: "你是视频素材管理助手。根据给定的视频关键帧，用一句简体中文描述画面内容（主体/动作/情绪/物体），并给出 3-6 个用于检索的中文标签。",
+    system:
+      "你是视频素材管理助手。根据给定的视频关键帧，用一句简体中文描述画面内容（主体/动作/情绪/物体），并给出 3-6 个用于检索的中文标签。" +
+      "务必准确识别画面中的食品/商品/品牌（是什么就写什么，如'生巧慕斯条''气泡水瓶'），这对检索至关重要，不要猜成无关物品。",
     user: JSON.stringify({ 素材整体: parentDescription, 片段时间范围: timeRange }),
     images: [{ dataUrl: `data:image/jpeg;base64,${b64}` }],
     schema: CaptionSchema,
+    model: process.env.ANALYSIS_VISION_MODEL?.trim() || "glm-4.5v",
   });
   return { description: result.description, tags: result.tags };
 }

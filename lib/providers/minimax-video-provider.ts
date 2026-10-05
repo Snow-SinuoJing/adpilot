@@ -51,7 +51,10 @@ export class MiniMaxVideoProvider implements VideoProvider {
 
   async submit(input: VideoSubmitInput): Promise<{ jobId: string }> {
     // 平台不支持 aspect 参数：用与目标画幅一致的首帧锚定方向（实测可靠）
-    const firstFrame = await verticalFirstFrameDataUrl(input.prompt, input.aspectRatio ?? "9:16");
+    const firstFrame = await verticalFirstFrameDataUrl(
+      input.nonce ? `${input.prompt}|${input.nonce}` : input.prompt,
+      input.aspectRatio ?? "9:16",
+    );
 
     if (this.isV2()) {
       const body = miniMaxV2SubmitBody(input, this.model, firstFrame);
