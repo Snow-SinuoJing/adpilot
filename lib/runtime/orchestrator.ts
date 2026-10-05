@@ -5,7 +5,7 @@ import { directorView, type Capabilities } from "@/lib/state/selectors";
 import { makeEvent } from "./events";
 import { transitionScene, validateInvariants } from "./reducer";
 import { canGenerateVideo, canRepairScene, canTakeDirectorStep } from "./limits";
-import { decideNextAction } from "@/lib/agents/director";
+import { decideNextAction, policyDecision } from "@/lib/agents/director";
 import { createStrategy } from "@/lib/agents/strategy";
 import { planAsset } from "@/lib/agents/asset-planner";
 import { searchAssets } from "@/lib/tools/search-assets";
@@ -101,7 +101,15 @@ export async function runProject(projectId: string, deps: OrchestratorDeps = def
       }
 
       const view = directorView(state, deps.capabilities);
-      const decision = await decideNextAction(view);
+      // The Director LLM is a decision *advisor*; the deterministic policy
+      // is the floor. A transient model failure must never kill a run.
+      let decision;
+      try {
+        decision = await decideNextAction(view);
+      } catch (error) {
+        console.warn("[director] LLM decision failed — continuing with policy:", error);
+        decision = policyDecision(view);
+      }
 
       store.update(projectId, (s) => {
         s.decisions.push({
@@ -341,7 +349,35 @@ async function runEvaluateScene(projectId: string, sceneId: string): Promise<voi
   emit(projectId, { type: "AGENT_STARTED", actor: "CRITIC", sceneId, title: "Multimodal QA" });
 
   const state = store.get(projectId)!;
-  const { result, frameUrls } = await evaluateScene(state, sceneId);
+  let result: Awaited<ReturnType<typeof evaluateScene>>["result"];
+  let frameUrls: string[] = [];
+  try {
+    ({ result, frameUrls } = await evaluateScene(state, sceneId));
+  } catch (error) {
+    // design doc §18.2: critic failure after retry → conservative PASS_WITH_WARNING
+    console.warn(`[critic] evaluation failed for ${sceneId} — conservative pass:`, error);
+    result = {
+      score: 76,
+      decision: "PASS",
+      dimensions: {
+        intentAlignment: 76,
+        visualQuality: 76,
+        productVisibility: 76,
+        localization: 76,
+        safetyAndText: 76,
+      },
+      issues: [
+        {
+          type: "critic-unavailable",
+          severity: "low",
+          description: `Critic could not evaluate (${error instanceof Error ? error.message.slice(0, 80) : "unknown"}); scene passed conservatively.`,
+        },
+      ],
+    };
+    store.update(projectId, (s) => {
+      sceneOf(s, sceneId).qualityWarning = true;
+    });
+  }
 
   store.update(projectId, (s) => {
     const target = sceneOf(s, sceneId);
@@ -379,7 +415,7 @@ async function runRepairScene(projectId: string, sceneId: string): Promise<void>
   const scene = sceneOf(state, sceneId);
   const qa = scene.qa;
 
-  if (qa?.decision === "REPAIR" && canRepairScene(scene)) {
+  if (qa?.decision === "REPAIR" && canRepairScene(scene) && canGenerateVideo(state)) {
     const promptDelta =
       qa.repair?.promptDelta ?? "Make the product experience clearly visible and central.";
 
@@ -411,7 +447,8 @@ async function runRepairScene(projectId: string, sceneId: string): Promise<void>
     return;
   }
 
-  // ── forced stop (§13.3): repair budget exhausted, never a third attempt ──
+  // ── forced stop (§13.3): repair budget OR global generation budget
+  //    exhausted, never a third attempt ──
   const fallback = (scene.assetCandidates ?? []).find((c) => c.score > 0.2);
   if (fallback) {
     store.update(projectId, (s) => {
@@ -455,11 +492,28 @@ async function runGenerateVoices(projectId: string): Promise<void> {
   });
 
   for (const scene of pending) {
-    const audioUrl = await generateSceneVoice({
-      projectId,
-      sceneId: scene.id,
-      text: scene.voiceover!,
-    });
+    let audioUrl: string;
+    try {
+      audioUrl = await generateSceneVoice({
+        projectId,
+        sceneId: scene.id,
+        text: scene.voiceover!,
+      });
+    } catch (error) {
+      // degrade, don't die: a TTS outage must not kill a finished-shoot run
+      console.warn(`[tts] provider failed for ${scene.id} — using offline voice:`, error);
+      emit(projectId, {
+        type: "TOOL_PROGRESS",
+        actor: "TOOL",
+        sceneId: scene.id,
+        title: "TTS provider failed — falling back to offline voice",
+        detail: error instanceof Error ? error.message.slice(0, 120) : String(error),
+      });
+      const { FakeTtsProvider } = await import("@/lib/providers/fake-tts-provider");
+      const outPath = mediaFile(projectId, `${scene.id}-voice.mp3`);
+      await new FakeTtsProvider().synthesize({ text: scene.voiceover!, outPath });
+      audioUrl = urlForMedia(outPath);
+    }
     store.update(projectId, (s) => {
       sceneOf(s, scene.id).audioUrl = audioUrl;
     });
