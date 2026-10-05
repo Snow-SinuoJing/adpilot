@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { formatDuration } from "@/lib/i18n";
+import { IconArrowLeft, IconFilm, IconPlus } from "@/components/icons";
 
 interface AssetEntry {
   id: string;
@@ -17,6 +19,9 @@ interface AssetEntry {
   endTime?: number;
   url: string;
 }
+
+/** 与「上传」徽章重复的标签，不在卡片上重复展示。 */
+const REDUNDANT_TAGS = new Set(["uploaded", "上传"]);
 
 export default function AssetsPage() {
   const [assets, setAssets] = useState<AssetEntry[]>([]);
@@ -128,16 +133,18 @@ export default function AssetsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/" className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:border-zinc-500">
-            ← 返回首页
+          <Link href="/" className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:border-zinc-500">
+            <IconArrowLeft className="size-3.5" />
+            返回首页
           </Link>
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
             disabled={uploading}
-            className="rounded-lg bg-indigo-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-400 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-400 disabled:opacity-50"
           >
-            {uploading ? "上传处理中…" : "＋ 上传视频素材"}
+            <IconPlus className="size-3.5" />
+            {uploading ? "上传处理中…" : "上传视频素材"}
           </button>
           <input
             ref={fileInput}
@@ -167,7 +174,7 @@ export default function AssetsPage() {
           {parents.map((asset) => {
             const children = childrenOf(asset.file);
             return (
-              <div key={asset.id} className="flex flex-col">
+              <div key={asset.id} className="group flex flex-col">
                 <AssetCard
                   asset={asset}
                   segmentCount={children.length}
@@ -191,7 +198,7 @@ export default function AssetsPage() {
                           <span className="font-mono text-[10px] text-amber-300">
                             {child.id.replace(/^[^_]+_/, "")}
                           </span>
-                          <span className="text-[10px] text-zinc-500">{child.durationSec}s</span>
+                          <span className="text-[10px] text-zinc-500">{formatDuration(child.durationSec)}</span>
                         </div>
                         <video
                           src={`${child.url}#t=${child.startTime ?? 0},${child.endTime ?? child.durationSec}`}
@@ -246,11 +253,16 @@ function AssetCard({
   const [description, setDescription] = useState(asset.description);
   const [tags, setTags] = useState(asset.tags.join(", "));
 
+  // 上传时若还没生成 AI 描述，展示的是「文件名（用户上传·竖屏）」——转成人话
+  const descriptionLabel =
+    asset.description.match(/^\S+?\.(?:mp4|mov|webm)（(.+)）$/u)?.[1] ?? asset.description;
+  const visibleTags = Array.from(new Set(asset.tags)).filter((tag) => !REDUNDANT_TAGS.has(tag));
+
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60">
       <div className="relative aspect-[9/16] max-h-64 bg-black">
         <video
-          src={asset.url}
+          src={`${asset.url}#t=0.1`}
           className="size-full object-cover"
           muted
           loop
@@ -268,7 +280,7 @@ function AssetCard({
           </span>
         )}
         <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] text-zinc-200">
-          {asset.durationSec}s
+          {formatDuration(asset.durationSec)}
         </span>
       </div>
 
@@ -298,12 +310,14 @@ function AssetCard({
         </div>
       ) : (
         <div className="flex flex-1 flex-col gap-2 p-3">
-          <p className="line-clamp-2 text-xs text-zinc-300">{asset.description}</p>
-          <div className="flex flex-wrap gap-1">
-            {asset.tags.slice(0, 6).map((tag) => (
-              <span key={tag} className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">{tag}</span>
-            ))}
-          </div>
+          <p className="line-clamp-2 text-xs text-zinc-300">{descriptionLabel}</p>
+          {visibleTags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {visibleTags.slice(0, 6).map((tag) => (
+                <span key={tag} className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">{tag}</span>
+              ))}
+            </div>
+          )}
           <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
             {segmentCount > 0 ? (
               <button type="button" onClick={onToggle} className="flex-1 rounded-lg border border-amber-500/40 bg-amber-500/10 py-1 text-[11px] text-amber-300">
@@ -311,13 +325,17 @@ function AssetCard({
               </button>
             ) : (
               <button type="button" onClick={onAnalyze} className="flex-1 rounded-lg border border-zinc-700 py-1 text-[11px] text-zinc-300 hover:border-zinc-500" title="镜头检测 → 切片 → 视觉描述">
-                AI 拆分分析
+                AI 切片
               </button>
             )}
             <button type="button" onClick={onEdit} className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300 hover:border-zinc-500">
               编辑
             </button>
-            <button type="button" onClick={onDelete} className="rounded-lg border border-red-500/40 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/10">
+            <button
+              type="button"
+              onClick={onDelete}
+              className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px] text-zinc-500 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 max-sm:text-zinc-300"
+            >
               删除
             </button>
           </div>
