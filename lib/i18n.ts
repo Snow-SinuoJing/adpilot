@@ -78,3 +78,50 @@ export const DIMENSION_ZH: Record<string, string> = {
   localization: "本地化",
   safetyAndText: "安全与文字",
 };
+
+export const ERROR_CATEGORY_ZH: Record<string, string> = {
+  VALIDATION: "简报校验未通过",
+  MODEL: "决策模型异常",
+  VIDEO_PROVIDER: "视频生成服务异常",
+  TIMEOUT: "生成超时",
+  MEDIA_PROCESSING: "媒体处理异常",
+  STATE: "运行状态异常",
+  UNKNOWN: "未知错误",
+};
+
+/** 常见市场.en → .zh；未收录的市场原样展示。 */
+export const MARKET_ZH: Record<string, string> = {
+  Brazil: "巴西",
+  China: "中国",
+  "United States": "美国",
+  US: "美国",
+  USA: "美国",
+  UK: "英国",
+  "United Kingdom": "英国",
+  Japan: "日本",
+  Korea: "韩国",
+  Indonesia: "印尼",
+  Thailand: "泰国",
+  Vietnam: "越南",
+  "Southeast Asia": "东南亚",
+  Europe: "欧洲",
+  Germany: "德国",
+  France: "法国",
+  Spain: "西班牙",
+  Mexico: "墨西哥",
+  Argentina: "阿根廷",
+  India: "印度",
+  Global: "全球",
+};
+
+export const marketLabel = (market?: string): string =>
+  market ? (MARKET_ZH[market] ?? market) : "—";
+
+/** 短素材用「N 秒」，满一分钟用「M:SS」。 */
+export function formatDuration(sec: number): string {
+  if (!Number.isFinite(sec) || sec <= 0) return "—";
+  if (sec < 60) return `${Math.round(sec)} 秒`;
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
