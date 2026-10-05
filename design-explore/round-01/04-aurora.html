@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>04 极光流水线 — AdPilot</title>
+<style>
+  /* ═══ 方向 04 · 极光流水线 ═══
+     北极星：像在一块发光的磨砂玻璃上，看创意沿一条极光管道流成一支广告——机器的旅程被画成光。
+     引擎：材质×环境 = 磨砂玻璃 × 极光暗流（渐变只允许出现在流水线光带上，是"生产过程"的化身）；
+     骨架：居中单一物件——首屏只有一条横贯的流水线，四站挂其上 */
+  :root {
+    --bg: #0d0c1a;         /* 深紫黑 */
+    --glass: rgba(255,255,255,.045);
+    --glass-line: rgba(233,231,245,.14);
+    --txt: #e9e7f5;
+    --dim: #918da8;
+    --violet: #8b7cff;
+    --aqua: #4ed8c6;
+    --peach: #ffb38a;
+    --sans: "Avenir Next", "Futura", "PingFang SC", "Helvetica Neue", sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--txt); font-family:var(--sans); height:100vh; overflow:hidden; }
+  .space { height:100vh; display:grid; grid-template-rows:60px 1fr auto; position:relative; }
+  .space::before { content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse 70% 45% at 50% 34%, rgba(139,124,255,.13), transparent 62%),
+               radial-gradient(ellipse 45% 35% at 78% 70%, rgba(78,216,198,.07), transparent 60%); }
+
+  header { display:flex; align-items:center; gap:22px; padding:0 32px; border-bottom:1px solid var(--glass-line); position:relative; }
+  .logo { font-weight:700; font-size:17px; letter-spacing:.04em; }
+  .logo em { font-style:normal; background:linear-gradient(90deg, var(--violet), var(--aqua)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .crumb { font-size:12.5px; color:var(--dim); letter-spacing:.05em; }
+  .pill { margin-left:auto; display:flex; gap:10px; }
+  .pill span { font-size:11px; letter-spacing:.14em; color:var(--dim); border:1px solid var(--glass-line); border-radius:999px; padding:7px 16px; }
+  .pill span.on { color:#0d0c1a; font-weight:700; background:linear-gradient(90deg, var(--aqua), var(--violet)); border:0; }
+
+  /* 主区：一条极光流水线居中横贯 */
+  .flow { position:relative; display:flex; flex-direction:column; justify-content:center; padding:0 40px; min-height:0; }
+  .line { position:relative; height:4px; border-radius:4px; margin:96px 30px 0;
+    background:linear-gradient(90deg, var(--violet), var(--aqua) 55%, var(--peach));
+    box-shadow:0 0 34px rgba(139,124,255,.65), 0 0 90px rgba(78,216,198,.25); }
+  .line::after { content:""; position:absolute; top:-2px; left:0; width:160px; height:8px; border-radius:8px;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.9), transparent);
+    animation:stream 3.2s ease-in-out infinite; }
+  @keyframes stream { 0% { left:-10%; opacity:0; } 12% { opacity:1; } 88% { opacity:1; } 100% { left:96%; opacity:0; } }
+
+  .stations { display:grid; grid-template-columns:0.9fr 1.25fr 1.25fr 0.9fr; gap:22px; margin:-14px 6px 0; position:relative; }
+  .station { background:var(--glass); border:1px solid var(--glass-line); border-radius:22px; padding:20px; backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); min-height:0; }
+  .station h3 { font-size:11px; font-weight:700; letter-spacing:.3em; color:var(--dim); margin-bottom:14px; }
+  .station h3 i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; background:var(--glass-line); vertical-align:1px; }
+  .station.done h3 i { background:var(--aqua); box-shadow:0 0 10px rgba(78,216,198,.8); }
+  .station.hi h3 i { background:var(--violet); box-shadow:0 0 10px rgba(139,124,255,.8); }
+
+  .brief-rows { display:flex; flex-direction:column; gap:9px; font-size:12.5px; }
+  .brief-rows .r { display:flex; justify-content:space-between; gap:10px; }
+  .brief-rows .r span { color:var(--dim); }
+  .brief-rows .r b { font-weight:600; text-align:right; }
+
+  .scenes { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .scene { border-radius:14px; overflow:hidden; border:1px solid var(--glass-line); position:relative; transition:transform .25s ease, box-shadow .25s ease; cursor:pointer; }
+  .scene:hover { transform:translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,.45); }
+  .scene img { width:100%; aspect-ratio:9/13.5; object-fit:cover; display:block; }
+  .scene .tag { position:absolute; top:8px; left:8px; font-size:10px; font-weight:700; letter-spacing:.12em; background:rgba(13,12,26,.75); padding:4px 9px; border-radius:999px; backdrop-filter:blur(6px); }
+  .scene .fix { position:absolute; top:8px; right:8px; font-size:10px; font-weight:700; color:#0d0c1a; background:linear-gradient(90deg, var(--peach), var(--violet)); padding:4px 9px; border-radius:999px; }
+  .scene .below { display:flex; justify-content:space-between; align-items:baseline; padding:9px 10px 7px; font-size:10.5px; color:var(--dim); }
+  .scene .below b { color:var(--txt); font-size:12.5px; }
+
+  .review ul { list-style:none; display:flex; flex-direction:column; gap:10px; font-size:12px; line-height:1.55; }
+  .review li { display:flex; gap:9px; color:var(--dim); }
+  .review li b { color:var(--txt); font-weight:600; }
+  .review li .sc { margin-left:auto; font-weight:700; color:var(--aqua); }
+  .review li.fixed .sc { color:var(--peach); }
+  .review .verdict { margin-top:12px; font-size:11.5px; color:var(--dim); border-top:1px solid var(--glass-line); padding-top:11px; }
+  .review .verdict b { color:var(--txt); }
+
+  /* 成片站：光带的终点，物件被点亮 */
+  .out { text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .out .poster { width:132px; position:relative; }
+  .out .poster img { width:100%; aspect-ratio:9/16; object-fit:cover; border-radius:14px; display:block;
+    box-shadow:0 0 0 1px var(--glass-line), 0 0 44px rgba(255,179,138,.28), 0 18px 44px rgba(0,0,0,.5); }
+  .out .poster .halo { position:absolute; inset:-7px; border-radius:18px; border:1px solid rgba(255,179,138,.4); pointer-events:none; }
+  .out .dl { border:0; cursor:pointer; font-family:var(--sans); font-size:12.5px; font-weight:700; letter-spacing:.1em; color:#0d0c1a;
+    background:linear-gradient(90deg, var(--peach), var(--aqua)); border-radius:999px; padding:11px 26px; transition:transform .18s ease, box-shadow .18s ease; }
+  .out .dl:hover { transform:translateY(-1px); box-shadow:0 8px 26px rgba(255,179,138,.35); }
+  .out .meta { font-size:11px; color:var(--dim); line-height:1.8; letter-spacing:.04em; }
+  .out .meta b { color:var(--txt); }
+
+  footer { border-top:1px solid var(--glass-line); padding:14px 32px; display:flex; align-items:center; gap:20px; position:relative; }
+  footer p { font-size:12px; color:var(--dim); letter-spacing:.05em; }
+  footer p b { color:var(--txt); font-weight:600; }
+  footer .journey { margin-left:auto; font-size:11px; letter-spacing:.2em; color:var(--dim); }
+  footer .journey i { display:inline-block; width:56px; height:2px; border-radius:2px; margin:0 6px; vertical-align:3px;
+    background:linear-gradient(90deg, var(--violet), var(--aqua), var(--peach)); }
+</style>
+</head>
+<body>
+<div class="space">
+  <header>
+    <span class="logo">Ad<em>Pilot</em></span>
+    <span class="crumb">Tile Blitz · 巴西 · TikTok 竖屏 15 秒</span>
+    <div class="pill"><span class="on">已交付</span><span>素材库</span><span>新建广告</span></div>
+  </header>
+
+  <section class="flow">
+    <div class="line"></div>
+    <div class="stations">
+      <div class="station done">
+        <h3><i></i>简报 · 已接收</h3>
+        <div class="brief-rows">
+          <div class="r"><span>产品</span><b>Tile Blitz 消除手游</b></div>
+          <div class="r"><span>市场</span><b>巴西</b></div>
+          <div class="r"><span>受众</span><b>18–34 休闲玩家</b></div>
+          <div class="r"><span>画幅</span><b>9:16 · 15 秒</b></div>
+        </div>
+      </div>
+
+      <div class="station hi">
+        <h3><i></i>创意画布 · 三幕完成</h3>
+        <div class="scenes">
+          <div class="scene">
+            <img src="img/s1.jpg" alt="S1">
+            <span class="tag">S1 钩子</span>
+            <div class="below"><b>82 分</b><span>素材库 · 4 秒</span></div>
+          </div>
+          <div class="scene">
+            <img src="img/s2.jpg" alt="S2">
+            <span class="tag">S2 证明</span><span class="fix">自修复 64→88</span>
+            <div class="below"><b>88 分</b><span>AI 生成 · 6 秒</span></div>
+          </div>
+          <div class="scene">
+            <img src="img/s3.jpg" alt="S3">
+            <span class="tag">S3 号召</span>
+            <div class="below"><b>82 分</b><span>素材库 · 5 秒</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="station done review">
+        <h3><i></i>智能体评审 · 全部通过</h3>
+        <ul>
+          <li><b>策略</b> 定调三幕叙事：钩子→证明→号召</li>
+          <li><b>素材</b> S1/S3 命中素材库高分切片</li>
+          <li class="fixed"><b>评审</b> S2 首版 64 分 → 仅重做 S2<span class="sc">64</span></li>
+          <li class="fixed"><b>评审</b> S2 第 2 版通过，其余场景未受牵连<span class="sc">88</span></li>
+        </ul>
+        <p class="verdict">创意概念：<b>「一分钟狂欢挑战」</b>——碎片小憩变成迷你狂欢，点一下，彩纸迸发。</p>
+      </div>
+
+      <div class="station done out">
+        <h3><i></i>成片 · 已点亮</h3>
+        <div class="poster">
+          <img src="img/s2.jpg" alt="成片首帧">
+          <span class="halo"></span>
+        </div>
+        <button class="dl">↓ 下载 MP4</button>
+        <p class="meta"><b>15 秒 · 竖屏 9:16</b><br>2 次生成 · 1 次自修复 · 含配音</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>制作轨迹 —— 3 个场景 · <b>2 次画面生成 · 1 次自修复</b>（只重做不合格场景，S1/S3 未受牵连）</p>
+    <span class="journey">BRIEF <i></i> SCENES <i></i> QA <i></i> DELIVER</span>
+  </footer>
+</div>
+</body>
+</html>

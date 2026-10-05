@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>02 任务控制 — AdPilot</title>
+<style>
+  /* ═══ 方向 02 · 任务控制 ═══
+     北极星：像在任务控制中心看一台精密机器自己运转——每个智能体是一台仪表，机器的判断全部可见。
+     引擎：角色原型 = 航天任务控制台；骨架：网格拼贴（打破后台三栏套路，智能体动态升为主舞台） */
+  :root {
+    --bg: #050a08;         /* 冷黑绿底 */
+    --panel: #081209;
+    --line: #16241a;       /* 结构网格线 */
+    --txt: #d9e6dc;
+    --dim: #5f7566;
+    --lime: #c6f24e;       /* 仪表指示·酸绿 */
+    --orange: #ff5c38;     /* 警示橙 */
+    --mono: "SF Mono", Menlo, Consolas, monospace;
+    --sans: "PingFang SC", "Helvetica Neue", sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--txt); font-family:var(--mono); height:100vh; overflow:hidden; }
+  .grid { display:grid; grid-template-rows:52px 1fr 176px; height:100vh; }
+
+  /* 顶栏：任务代号条 */
+  header { display:flex; align-items:center; gap:0; border-bottom:1px solid var(--line); font-size:12px; letter-spacing:.08em; }
+  header .seg { padding:0 20px; height:52px; display:flex; align-items:center; gap:10px; border-right:1px solid var(--line); color:var(--dim); }
+  header .seg b { color:var(--txt); font-weight:600; }
+  .mission { color:var(--lime) !important; }
+  .tplus { margin-left:auto; border-right:0; color:var(--dim); }
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--lime); box-shadow:0 0 8px rgba(198,242,78,.8); animation:blink 1.6s steps(2) infinite; }
+  @keyframes blink { 50% { opacity:.25; } }
+
+  /* 主区：仪表拼贴 —— 中栏是主舞台（智能体动态），打破"时间线塞右栏"的套路 */
+  .deck { display:grid; grid-template-columns:280px minmax(0,1fr) 300px; min-height:0; }
+  .mod { border-right:1px solid var(--line); padding:18px; min-height:0; }
+  .mod:last-child { border-right:0; }
+  .mod h2 { font-size:10px; font-weight:500; letter-spacing:.34em; color:var(--dim); margin-bottom:14px; }
+  .mod h2 b { color:var(--txt); }
+
+  /* 左：简报参数 + 任务指标 */
+  .kv { display:flex; flex-direction:column; gap:9px; font-size:12px; }
+  .kv .row { display:flex; justify-content:space-between; gap:10px; border-bottom:1px dashed var(--line); padding-bottom:8px; }
+  .kv .row span { color:var(--dim); }
+  .kv .row b { font-weight:500; text-align:right; }
+  .gauges { margin-top:20px; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .gauge { border:1px solid var(--line); padding:12px 10px 10px; text-align:center; }
+  .gauge b { font-size:26px; font-weight:600; color:var(--lime); display:block; line-height:1; }
+  .gauge span { font-size:10px; color:var(--dim); letter-spacing:.14em; display:block; margin-top:7px; }
+  .gauge.warn b { color:var(--orange); }
+  .pipeline { margin-top:20px; }
+  .pipeline h3 { font-size:10px; letter-spacing:.3em; color:var(--dim); margin-bottom:10px; }
+  .stages { display:flex; gap:4px; }
+  .stages i { height:5px; flex:1; background:var(--line); }
+  .stages i.on { background:var(--lime); box-shadow:0 0 8px rgba(198,242,78,.5); }
+  .stages-label { display:flex; justify-content:space-between; font-size:10px; color:var(--dim); margin-top:7px; letter-spacing:.1em; }
+
+  /* 中：智能体动态 = 主舞台 */
+  .console { background:var(--panel); position:relative; overflow:hidden; }
+  .console::after { content:""; position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(217,230,220,.022) 0 1px, transparent 1px 3px); }
+  .feed { display:flex; flex-direction:column; gap:0; font-size:12.5px; line-height:1.5; }
+  .ev { display:grid; grid-template-columns:58px 52px 1fr; gap:12px; padding:8px 18px 8px 0; border-bottom:1px solid var(--line); align-items:baseline; }
+  .ev .t { color:#42513f; font-size:11px; }
+  .ev .who { color:var(--dim); letter-spacing:.1em; font-size:11px; }
+  .ev .what { color:var(--txt); }
+  .ev .what small { display:block; color:var(--dim); font-size:11px; margin-top:2px; }
+  .ev.hot { background:linear-gradient(90deg, rgba(198,242,78,.08), transparent 70%); }
+  .ev.hot .who, .ev.hot .what b { color:var(--lime); }
+  .ev.alert { background:linear-gradient(90deg, rgba(255,92,56,.08), transparent 70%); }
+  .ev.alert .who, .ev.alert .what b { color:var(--orange); }
+  .agents { position:absolute; top:0; right:0; left:0; height:44px; border-bottom:1px solid var(--line); display:flex; background:var(--bg); }
+  .agents .a { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; border-right:1px solid var(--line); font-size:11px; letter-spacing:.18em; color:var(--dim); }
+  .agents .a:last-child { border-right:0; }
+  .agents .a i { width:6px; height:6px; border-radius:50%; background:var(--line); }
+  .agents .a.on { color:var(--txt); }
+  .agents .a.on i { background:var(--lime); box-shadow:0 0 8px rgba(198,242,78,.7); }
+  .feedwrap { position:absolute; top:44px; bottom:0; left:0; right:0; overflow:hidden; padding-top:6px; }
+
+  /* 右：成片舱 */
+  .bay { display:flex; flex-direction:column; }
+  .bay .holder { position:relative; width:180px; margin:2px auto 16px; }
+  .bay img { width:100%; aspect-ratio:9/16; object-fit:cover; display:block; border:1px solid var(--lime); box-shadow:0 0 34px rgba(198,242,78,.14); }
+  .bay .corner { position:absolute; inset:-5px; pointer-events:none; }
+  .bay .corner i { position:absolute; width:10px; height:10px; border:1px solid var(--lime); }
+  .bay .corner i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0}
+  .bay .corner i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0}
+  .bay .corner i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0}
+  .bay .corner i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0}
+  .dl { display:block; width:100%; text-align:center; background:var(--lime); color:#0a1206; font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.22em; padding:11px 0; border:0; cursor:pointer; transition:filter .15s; }
+  .dl:hover { filter:brightness(1.1); }
+  .baynote { margin-top:12px; font-size:11px; color:var(--dim); line-height:1.8; text-align:center; letter-spacing:.04em; }
+  .baynote b { color:var(--txt); font-weight:500; }
+
+  /* 底部：三场景状态条 */
+  .strip { border-top:1px solid var(--line); display:grid; grid-template-columns:repeat(3,1fr); }
+  .sc { border-right:1px solid var(--line); padding:14px 20px; display:flex; gap:14px; align-items:center; }
+  .sc:last-child { border-right:0; }
+  .sc .id { font-size:22px; font-weight:600; color:var(--lime); }
+  .sc.warn .id { color:var(--orange); }
+  .sc .body { min-width:0; flex:1; }
+  .sc .body .nm { font-family:var(--sans); font-size:13px; color:var(--txt); margin-bottom:3px; }
+  .sc .body .src { font-size:10px; color:var(--dim); letter-spacing:.12em; }
+  .sc .meter { width:64px; text-align:right; }
+  .sc .meter b { font-size:20px; font-weight:600; color:var(--txt); }
+  .sc .meter .bar { height:3px; background:var(--line); margin-top:6px; }
+  .sc .meter .bar i { display:block; height:100%; background:var(--lime); }
+  .sc.warn .meter .bar i { background:var(--orange); }
+</style>
+</head>
+<body>
+<div class="grid">
+  <header>
+    <span class="seg mission"><span class="dot"></span>MISSION · TILE-BLITZ-BR</span>
+    <span class="seg">ADPILOT 任务控制</span>
+    <span class="seg">状态 <b>已完成</b></span>
+    <span class="seg">15S · 9:16 · TIKTOK</span>
+    <span class="seg tplus">T+00:15:32 · 全部站正常</span>
+  </header>
+
+  <div class="deck">
+    <section class="mod">
+      <h2>任务参数 <b>BRIEF</b></h2>
+      <div class="kv">
+        <div class="row"><span>产品</span><b>Tile Blitz 消除手游</b></div>
+        <div class="row"><span>市场</span><b>巴西</b></div>
+        <div class="row"><span>受众</span><b>18–34 休闲玩家</b></div>
+        <div class="row"><span>画幅</span><b>竖屏 9:16</b></div>
+        <div class="row"><span>要求</span><b>连击爽感 · 色彩鲜艳</b></div>
+      </div>
+      <div class="gauges">
+        <div class="gauge"><b>3</b><span>场景</span></div>
+        <div class="gauge warn"><b>1</b><span>自修复</span></div>
+        <div class="gauge"><b>88</b><span>最低分</span></div>
+      </div>
+      <div class="pipeline">
+        <h3>流水线</h3>
+        <div class="stages"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <div class="stages-label"><span>规划</span><span>检索</span><span>生成</span><span>评审</span><span>配音</span><span>合成</span></div>
+      </div>
+    </section>
+
+    <section class="mod console">
+      <div class="agents">
+        <span class="a on"><i></i>策略</span>
+        <span class="a on"><i></i>素材</span>
+        <span class="a on"><i></i>评审</span>
+        <span class="a on"><i></i>导演</span>
+        <span class="a"><i></i>工具</span>
+      </div>
+      <div class="feedwrap">
+        <div class="feed">
+          <div class="ev"><span class="t">16:49:55</span><span class="who">策略</span><span class="what">定调三幕叙事：钩子 → 证明 → 行动号召</span></div>
+          <div class="ev"><span class="t">16:50:41</span><span class="who">素材</span><span class="what">S1 命中素材库 <small>asset_001 · 匹配度 0.91</small></span></div>
+          <div class="ev"><span class="t">16:50:43</span><span class="who">素材</span><span class="what">S3 命中素材库 <small>asset_006 · 匹配度 0.88</small></span></div>
+          <div class="ev alert"><span class="t">16:53:02</span><span class="who">素材</span><span class="what"><b>S2 检索为空 → 决策转 AI 生成</b><small>候选片段均未呈现核心玩法画面</small></span></div>
+          <div class="ev"><span class="t">16:55:37</span><span class="who">工具</span><span class="what">S2 视频生成第 1 版完成 · 6 秒</span></div>
+          <div class="ev alert"><span class="t">16:57:12</span><span class="who">评审</span><span class="what"><b>S2 评审 64 分 · 不合格 → 仅重做 S2</b><small>CTA 移动端下载按钮特写缺失</small></span></div>
+          <div class="ev hot"><span class="t">17:01:26</span><span class="who">评审</span><span class="what"><b>S2 第 2 版 88 分 · 通过</b><small>5 维评审全部达标，未拖累 S1/S3</small></span></div>
+          <div class="ev hot"><span class="t">17:05:49</span><span class="who">导演</span><span class="what">配音混音完成 · 成片交付 <b>final.mp4</b></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mod bay">
+      <h2>成片舱 <b>OUTPUT</b></h2>
+      <div class="holder">
+        <img src="img/s1.jpg" alt="成片首帧">
+        <span class="corner"><i></i><i></i><i></i><i></i></span>
+      </div>
+      <button class="dl">↓ 下载 MP4</button>
+      <p class="baynote">已就绪 · 15 秒 · 竖屏 9:16<br><b>2 次生成 · 1 次自修复</b> · 含配音与 BGM</p>
+    </section>
+  </div>
+
+  <footer class="strip">
+    <div class="sc">
+      <span class="id">S1</span>
+      <div class="body"><p class="nm">钩子 · 碎片小憩</p><p class="src">素材库 · 4 秒</p></div>
+      <div class="meter"><b>82</b><div class="bar"><i style="width:82%"></i></div></div>
+    </div>
+    <div class="sc warn">
+      <span class="id">S2</span>
+      <div class="body"><p class="nm">证明 · 连击狂欢 · 第 2 版</p><p class="src">AI 生成 · 6 秒 · 修复 64→88</p></div>
+      <div class="meter"><b>88</b><div class="bar"><i style="width:88%"></i></div></div>
+    </div>
+    <div class="sc">
+      <span class="id">S3</span>
+      <div class="body"><p class="nm">号召 · 立即下载</p><p class="src">素材库 · 5 秒</p></div>
+      <div class="meter"><b>82</b><div class="bar"><i style="width:82%"></i></div></div>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

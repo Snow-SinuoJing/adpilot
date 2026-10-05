@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>01 午夜放映厅 — AdPilot</title>
+<style>
+  /* ═══ 方向 01 · 午夜放映厅 ═══
+     北极星：像在暗房放映室里审片——环境全黑，只有画面亮着，一条琥珀审片灯。
+     引擎：材质×环境 = 35mm 放映室；骨架：画面即界面（成片大画面即首屏主角） */
+  :root {
+    --ink: #0b0908;        /* 暖黑环境 */
+    --ink-2: #141110;      /* 面板 */
+    --line: #2a2320;       /* 暖色分隔线 */
+    --paper: #ede6d8;      /* 米白文字 */
+    --dim: #8a7f70;        /* 次级文字 */
+    --amber: #e8a33d;      /* 审片灯·唯一强调色 */
+    --amber-dim: rgba(232,163,61,.14);
+    --serif: "Songti SC", "Noto Serif SC", "STSong", serif;
+    --sans: "PingFang SC", "Helvetica Neue", sans-serif;
+    --mono: "SF Mono", Menlo, monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--ink); color:var(--paper); font-family:var(--sans); height:100vh; overflow:hidden; }
+  .stage { display:grid; grid-template-rows:56px 1fr 208px; height:100vh; }
+
+  /* 顶栏：放映厅铭牌 */
+  header { display:flex; align-items:center; gap:20px; padding:0 28px; border-bottom:1px solid var(--line); }
+  .brand { font-family:var(--serif); font-size:19px; letter-spacing:.14em; }
+  .brand em { color:var(--amber); font-style:normal; }
+  .crumb { font-size:12px; color:var(--dim); letter-spacing:.06em; }
+  .lamp { margin-left:auto; display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px; letter-spacing:.2em; color:var(--amber); }
+  .lamp i { width:8px; height:8px; border-radius:50%; background:var(--amber); box-shadow:0 0 12px 2px rgba(232,163,61,.55); animation:breath 2.4s ease-in-out infinite; }
+  @keyframes breath { 50% { opacity:.35; box-shadow:0 0 4px 0 rgba(232,163,61,.3);} }
+  .reel { font-family:var(--mono); font-size:11px; color:var(--dim); letter-spacing:.12em; }
+
+  /* 主区：画面即界面 */
+  .hall { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:0; min-height:0; }
+  .screen { position:relative; display:flex; align-items:center; justify-content:center; gap:56px; padding:28px 40px; min-height:0; }
+  .screen::before { content:""; position:absolute; inset:0; background:radial-gradient(ellipse 60% 70% at 38% 45%, rgba(232,163,61,.07), transparent 65%); pointer-events:none; }
+
+  /* 成片：竖版大画面，光从它来 */
+  .feature { position:relative; height:calc(100% - 24px); aspect-ratio:9/16; max-width:380px; box-shadow:0 0 90px rgba(232,163,61,.16), 0 30px 80px rgba(0,0,0,.7); }
+  .feature img { width:100%; height:100%; object-fit:cover; display:block; filter:brightness(1.04) saturate(1.05); }
+  .feature .frame { position:absolute; inset:0; border:1px solid rgba(237,230,216,.16); pointer-events:none; }
+  .feature .frame::before, .feature .frame::after,
+  .feature .frame i::before, .feature .frame i::after {
+    content:""; position:absolute; width:14px; height:14px; border:1px solid var(--amber); 
+  }
+  .feature .frame::before { top:-1px; left:-1px; border-right:0; border-bottom:0; }
+  .feature .frame::after { top:-1px; right:-1px; border-left:0; border-bottom:0; }
+  .feature .frame i::before { bottom:-1px; left:-1px; border-right:0; border-top:0; }
+  .feature .frame i::after { bottom:-1px; right:-1px; border-left:0; border-top:0; }
+  .feature .tc { position:absolute; left:12px; bottom:10px; font-family:var(--mono); font-size:10px; letter-spacing:.18em; color:rgba(237,230,216,.75); text-shadow:0 1px 4px #000; }
+  .feature .grade { position:absolute; right:12px; top:10px; font-family:var(--mono); font-size:11px; background:rgba(11,9,8,.72); border:1px solid var(--amber); color:var(--amber); padding:3px 9px; letter-spacing:.1em; }
+
+  /* 片名信息区（压在画面旁的安全区） */
+  .titleblock { max-width:430px; }
+  .kicker { font-family:var(--mono); font-size:11px; letter-spacing:.34em; color:var(--amber); margin-bottom:18px; }
+  h1 { font-family:var(--serif); font-weight:900; font-size:52px; line-height:1.14; letter-spacing:.02em; margin-bottom:16px; }
+  .concept { font-family:var(--serif); font-size:15px; line-height:1.9; color:var(--dim); margin-bottom:26px; }
+  .concept b { color:var(--paper); font-weight:600; }
+  .meta { display:flex; gap:26px; font-size:12px; color:var(--dim); letter-spacing:.04em; margin-bottom:30px; }
+  .meta b { display:block; color:var(--paper); font-size:14px; font-weight:600; margin-top:4px; letter-spacing:.02em; }
+  .actions { display:flex; align-items:center; gap:16px; }
+  .btn-screen { font-family:var(--serif); font-size:15px; letter-spacing:.2em; color:var(--ink); background:var(--amber); border:0; padding:13px 34px; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease; }
+  .btn-screen:hover { transform:translateY(-1px); box-shadow:0 6px 26px rgba(232,163,61,.4); }
+  .btn-ghost { font-size:12px; letter-spacing:.14em; color:var(--dim); background:none; border:1px solid var(--line); padding:12px 22px; cursor:pointer; transition:color .15s, border-color .15s; }
+  .btn-ghost:hover { color:var(--paper); border-color:var(--dim); }
+  .trace { margin-top:22px; font-size:11px; color:var(--dim); letter-spacing:.05em; line-height:1.9; }
+  .trace em { color:var(--amber); font-style:normal; }
+
+  /* 右栏：通告单（简报 + 智能体场记） */
+  .callroom { border-left:1px solid var(--line); background:var(--ink-2); padding:22px 22px 16px; overflow:hidden; display:flex; flex-direction:column; gap:18px; }
+  .sheet h3 { font-family:var(--mono); font-size:10px; letter-spacing:.3em; color:var(--dim); margin-bottom:12px; }
+  .sheet dl { display:grid; grid-template-columns:auto 1fr; gap:7px 14px; font-size:12px; }
+  .sheet dt { color:var(--dim); letter-spacing:.08em; }
+  .sheet dd { color:var(--paper); }
+  .log { flex:1; min-height:0; border-top:1px solid var(--line); padding-top:14px; }
+  .log h3 { font-family:var(--mono); font-size:10px; letter-spacing:.3em; color:var(--dim); margin-bottom:12px; }
+  .log ul { list-style:none; display:flex; flex-direction:column; gap:9px; }
+  .log li { display:flex; gap:10px; font-size:11px; line-height:1.55; color:var(--dim); }
+  .log li b { color:var(--paper); font-weight:500; }
+  .log .t { font-family:var(--mono); font-size:10px; color:#5a5148; padding-top:1px; }
+  .log li.mark { border-left:2px solid var(--amber); padding-left:9px; margin-left:-11px; }
+  .log li.mark b { color:var(--amber); }
+
+  /* 底部：场景胶片条 */
+  .filmstrip { border-top:1px solid var(--line); display:grid; grid-template-columns:repeat(3,1fr); }
+  .cell { position:relative; display:flex; gap:16px; padding:16px 22px; border-right:1px solid var(--line); align-items:center; transition:background .2s ease; cursor:pointer; }
+  .cell:last-child { border-right:0; }
+  .cell:hover { background:rgba(232,163,61,.05); }
+  /* 胶片齿孔 */
+  .cell::before { content:""; position:absolute; top:0; left:0; right:0; height:7px;
+    background-image:radial-gradient(circle 2.6px at 9px 3.5px, var(--line) 98%, transparent); background-size:18px 7px; }
+  .cell .thumb { width:52px; height:86px; object-fit:cover; display:block; border:1px solid var(--line); filter:saturate(1.05); }
+  .cell .no { font-family:var(--serif); font-size:26px; color:var(--amber); line-height:1; }
+  .cell .info { min-width:0; }
+  .cell .info .role { font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--dim); margin-bottom:5px; }
+  .cell .info .name { font-family:var(--serif); font-size:16px; margin-bottom:6px; }
+  .cell .info .sub { font-size:11px; color:var(--dim); letter-spacing:.03em; }
+  .cell .score { margin-left:auto; text-align:right; font-family:var(--mono); }
+  .cell .score b { font-size:24px; font-weight:600; color:var(--paper); display:block; line-height:1; }
+  .cell .score span { font-size:9px; letter-spacing:.24em; color:var(--amber); }
+  .cell.repaired .score b { color:var(--amber); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <span class="brand">Ad<em>Pilot</em> 放映室</span>
+    <span class="crumb">Tile Blitz · 巴西 · TikTok 竖屏 15 秒</span>
+    <span class="lamp"><i></i>SCREENING</span>
+    <span class="reel">REEL 03 · 00:15</span>
+  </header>
+
+  <div class="hall">
+    <section class="screen">
+      <figure class="feature">
+        <img src="img/s1.jpg" alt="成片开场画面">
+        <span class="frame"><i></i></span>
+        <span class="tc">TC 00:00:00:18 · 竖屏 9:16 · 88 分通过</span>
+      </figure>
+      <div class="titleblock">
+        <p class="kicker">CAMPAIGN · 巴西市场 · 15 秒竖版</p>
+        <h1>Tile Blitz<br>狂欢式连击</h1>
+        <p class="concept">创意概念：<b>「一分钟狂欢挑战」</b>——把巴西日常的碎片小憩变成一场迷你狂欢：指尖每点一下，连击数字跳升、彩纸迸发，像在屏幕上放小型烟花。</p>
+        <div class="meta">
+          <span>受众<b>18–34 休闲玩家</b></span>
+          <span>场景<b>三幕 · 钩子/证明/号召</b></span>
+          <span>配音<b>中文普通话</b></span>
+        </div>
+        <div class="actions">
+          <button class="btn-screen">下 映 · MP4</button>
+          <button class="btn-ghost">导出分镜</button>
+        </div>
+        <p class="trace">制作轨迹 —— 3 场景 · 2 次画面生成 · <em>1 次自修复</em>（S2 64 分 → 88 分，仅重做不合格场景）</p>
+      </div>
+    </section>
+
+    <aside class="callroom">
+      <div class="sheet">
+        <h3>通告单 · BRIEF</h3>
+        <dl>
+          <dt>产品</dt><dd>Tile Blitz 消除手游</dd>
+          <dt>市场</dt><dd>巴西</dd>
+          <dt>受众</dt><dd>18–34 岁休闲玩家</dd>
+          <dt>画幅</dt><dd>竖屏 9:16 · 15 秒</dd>
+          <dt>要求</dt><dd>连击爽感 · 色彩鲜艳</dd>
+        </dl>
+      </div>
+      <div class="log">
+        <h3>场记 · 智能体动态</h3>
+        <ul>
+          <li><span class="t">16:49</span><span><b>策略</b> 定调三幕叙事：钩子→证明→号召</span></li>
+          <li><span class="t">16:51</span><span><b>素材</b> S1、S3 命中素材库高分切片</span></li>
+          <li><span class="t">16:53</span><span><b>素材</b> S2 检索为空 → 转 AI 生成</span></li>
+          <li class="mark"><span class="t">16:57</span><span><b>评审</b> S2 首版 64 分不合格，只重做 S2</span></li>
+          <li class="mark"><span class="t">17:01</span><span><b>评审</b> S2 二版 88 分通过</span></li>
+          <li><span class="t">17:05</span><span><b>导演</b> 配音混音，成片交付</span></li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="filmstrip">
+    <div class="cell">
+      <img class="thumb" src="img/s1.jpg" alt="S1">
+      <span class="no">壹</span>
+      <div class="info">
+        <p class="role">HOOK · 素材库</p>
+        <p class="name">钩子 · 碎片小憩</p>
+        <p class="sub">4 秒 · 已通过</p>
+      </div>
+      <div class="score"><b>82</b><span>PASS</span></div>
+    </div>
+    <div class="cell repaired">
+      <img class="thumb" src="img/s2.jpg" alt="S2">
+      <span class="no">贰</span>
+      <div class="info">
+        <p class="role">PROOF · AI 生成 · 第 2 版</p>
+        <p class="name">证明 · 连击狂欢</p>
+        <p class="sub">6 秒 · 自修复 64 → 88</p>
+      </div>
+      <div class="score"><b>88</b><span>PASS</span></div>
+    </div>
+    <div class="cell">
+      <img class="thumb" src="img/s3.jpg" alt="S3">
+      <span class="no">叁</span>
+      <div class="info">
+        <p class="role">CTA · 素材库</p>
+        <p class="name">号召 · 立即下载</p>
+        <p class="sub">5 秒 · 已通过</p>
+      </div>
+      <div class="score"><b>82</b><span>PASS</span></div>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

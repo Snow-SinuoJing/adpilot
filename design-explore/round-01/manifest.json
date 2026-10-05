@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "project": "AdPilot 自修复智能体广告工作室",
+  "brief": "完成态工作台：AdPilot 的核心画面——用户提交简报后，三个场景（钩子/证明/号召）已通过质检并完成一次自修复（S2 64→88 分），最终竖版成片已交付。所有候选表达同一内容：品牌与项目标识、简报摘要、三场景与分数来源、智能体决策动态、成片与下载。",
+  "round": "01",
+  "candidates": [
+    {
+      "id": "baseline",
+      "name": "现状（微调后的 zinc 深色工作台）",
+      "concept": "工程可靠的深色 SaaS 工作台——上一轮纪律性修正后的样子，作为对照基线",
+      "typography": "Geist Sans 全局，无展示字体层级",
+      "palette": ["#09090b", "#18181b", "#6366f1"],
+      "traits": ["三栏均等卡片", "indigo 主色", "信息密度均匀"],
+      "kind": "image",
+      "source": "baseline.png",
+      "baseline": true
+    },
+    {
+      "id": "cinema-loft",
+      "name": "01 午夜放映厅",
+      "concept": "像在暗房放映室里审片：环境全黑，只有画面亮着，一条琥珀审片灯；成片是悬挂在灯下的大画面",
+      "typography": "中文宋体展示字（片头字幕感）+ 黑体正文 + 等宽时间码；标题 52px/正文 12-15px 强对比",
+      "palette": ["#0b0908", "#ede6d8", "#e8a33d"],
+      "traits": ["画面即界面：竖版大画面+四角片框压字", "底部胶片齿孔场景条、中文数字编号", "琥珀唯一强调色，暖黑环境"],
+      "kind": "html",
+      "source": "01-cinema.html"
+    },
+    {
+      "id": "mission-control",
+      "name": "02 任务控制",
+      "concept": "像在任务控制中心看一台精密机器自己运转：每个智能体是一台仪表，机器的每次判断都亮灯可见",
+      "typography": "全局等宽字体 + 大数字仪表；字母间距拉大，信息按网格线对齐",
+      "palette": ["#050a08", "#c6f24e", "#ff5c38"],
+      "traits": ["网格拼贴、无圆角、1px 结构线", "智能体动态升为主舞台（打破时间线塞右栏的套路）", "酸绿=正常/通过，警示橙=修复事件"],
+      "kind": "html",
+      "source": "02-mission-control.html"
+    },
+    {
+      "id": "editorial-poster",
+      "name": "03 创意评审刊",
+      "concept": "像翻一本广告创意总监的提案刊：每个场景是一页排版大胆的海报，巨型编号与分数印章即导航（唯一的亮色方向——广告提案物料本就是纸面排版语言）",
+      "typography": "超重黑体巨字刊头 64px + Georgia 衬线概念段；场景编号 96px 做主视觉",
+      "palette": ["#f2efe7", "#141210", "#ff4d00"],
+      "traits": ["通栏上下堆叠，粗规则线分版", "纸白底+墨黑+国际橙", "QA 分数做成斜盖的印章"],
+      "kind": "html",
+      "source": "03-editorial.html"
+    },
+    {
+      "id": "aurora-pipeline",
+      "name": "04 极光流水线",
+      "concept": "像在一块发光的磨砂玻璃上，看创意沿一条极光管道流成一支广告——把机器的旅程画成光",
+      "typography": "几何无衬线（Avenir/Futura 栈）+ 大字距小标题；层级靠字重与间距",
+      "palette": ["#0d0c1a", "#8b7cff", "#4ed8c6"],
+      "traits": ["居中单一物件：横贯流水线光带+流动光斑", "磨砂玻璃卡 backdrop-blur", "渐变只出现在流水线与主按钮上，其余安静"],
+      "kind": "html",
+      "source": "04-aurora.html"
+    }
+  ]
+}
