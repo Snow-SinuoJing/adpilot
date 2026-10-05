@@ -69,10 +69,25 @@ export function searchAssets(input: { query: string; purpose: string; topK?: num
   const entries = (Array.isArray(raw) ? raw : []) as AssetEntry[];
   const searchable = entries.filter((e) => !e.hasSegments);
 
+  // 产品锚定的两半（用户反馈 #4）：命中产品名的素材强加成；只要库里存在
+  // 产品命中的素材，产品不符的素材再强惩罚。Tile Blitz 演示库没有产品
+  // 命中素材 → 惩罚不启用，演示剧本不受影响。
+  const productHit = (asset: AssetEntry): boolean => {
+    if (!input.product) return false;
+    const productTokens = [...tokenize(input.product)];
+    if (productTokens.length === 0) return false;
+    const assetTokens = tokenize(`${asset.description} ${asset.tags.join(" ")}`);
+    const hits = productTokens.filter((t) => assetTokens.has(t)).length;
+    return hits / productTokens.length >= 0.5;
+  };
+  const anyProductHit = searchable.some((asset) => productHit(asset));
+
   const scored = searchable
     .map((asset) => ({
       asset,
-      score: scoreAsset({ intent: input.query, purpose: input.purpose, product: input.product }, asset),
+      score:
+        scoreAsset({ intent: input.query, purpose: input.purpose, product: input.product }, asset) *
+        (anyProductHit && !productHit(asset) ? 0.35 : 1),
     }))
     .filter(({ score }) => score > 0.01);
 
