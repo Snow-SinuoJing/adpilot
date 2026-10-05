@@ -226,14 +226,25 @@ describe("ffmpeg command builders", () => {
   });
 
   it("prefers slow-motion over frozen frames when footage is short", () => {
-    // 目标 5.5s、素材 4s：慢放 1.375x 恰好补齐，无需冻结帧
+    // 目标 5.5s、素材 4s：慢放 1.375x 恰好补齐，无需额外段
     const exact = buildNormalizeArgs({ videoPath: "in.mp4", durationSec: 5.5, outPath: "o.mp4", srcDur: 4 });
     expect(exact.join(" ")).toContain("setpts=1.3750*PTS");
     expect(exact.join(" ")).not.toContain("tpad");
-    // 差距过大（4s→6s）：先慢放 1.45x，剩余 0.2s 才克隆末帧兜底
+    // 差距过大（4s→6s）：慢放 1.45x 后用倒放回接补足——画面持续运动，不再冻结末帧
     const capped = buildNormalizeArgs({ videoPath: "in.mp4", durationSec: 6, outPath: "o.mp4", srcDur: 4 });
     expect(capped.join(" ")).toContain("setpts=1.4500*PTS");
-    expect(capped.join(" ")).toContain("tpad");
+    expect(capped.join(" ")).toContain("reverse");
+    expect(capped.join(" ")).toContain("concat=n=2");
+    expect(capped.join(" ")).not.toContain("tpad");
+    // 差距更大（3s→10s）：慢放 1.45x 后 4.35s/段，需要三段（正-倒-正）
+    const triple = buildNormalizeArgs({ videoPath: "in.mp4", durationSec: 10, outPath: "o.mp4", srcDur: 3 });
+    expect(triple.join(" ")).toContain("concat=n=3");
+    expect(triple.join(" ")).not.toContain("tpad");
+    // 素材够长：直接修剪，不慢放不回接（setpts 仅重置时间戳，无慢放系数）
+    const trim = buildNormalizeArgs({ videoPath: "in.mp4", durationSec: 5, outPath: "o.mp4", srcDur: 9 });
+    expect(trim.join(" ")).toContain("trim=duration=5.00");
+    expect(trim.join(" ")).not.toContain("*PTS");
+    expect(trim.join(" ")).not.toContain("tpad");
   });
 
   it("normalize targets 16:9 when the brief asks for landscape (用户反馈 #2)", () => {

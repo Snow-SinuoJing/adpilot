@@ -182,7 +182,7 @@ export function CrewRoster({
               <b className="block text-[11.5px] font-extrabold tracking-[0.08em]">{role}</b>
               <i className="block font-mono text-[8px] not-italic tracking-[0.12em] text-grey">{en}</i>
             </span>
-            <span className="onduty">干活中</span>
+            {working && <span className="onduty">干活中</span>}
           </span>
         );
       })}

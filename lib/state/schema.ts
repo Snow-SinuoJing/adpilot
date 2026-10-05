@@ -108,6 +108,8 @@ export const AssetCandidateSchema = z.object({
   /** Segment candidates: cut window inside the parent video file */
   startTime: z.number().min(0).optional(),
   endTime: z.number().min(0).optional(),
+  /** 原始文件名——用于跨场景去同源（同一视频的不同切片不重复选用） */
+  parentFile: z.string().optional(),
 });
 export type AssetCandidate = z.infer<typeof AssetCandidateSchema>;
 

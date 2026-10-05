@@ -107,20 +107,32 @@ export function searchAssets(input: { query: string; purpose: string; topK?: num
     }))
     .filter(({ score }) => score >= 0.15); // 弱分候选是噪声，宁缺毋滥交给规划器
 
-  return scored
-    .sort((a, b) => b.score - a.score)
-    .slice(0, input.topK ?? 3)
-    .map(({ asset, score }) =>
-      AssetCandidateSchema.parse({
-        id: asset.id,
-        path: path.join(ASSETS_DIR, asset.file),
-        description: asset.description,
-        tags: asset.tags,
-        durationSec: asset.durationSec,
-        score: Math.round(score * 100) / 100,
-        ...(asset.startTime !== undefined && asset.endTime !== undefined
-          ? { startTime: asset.startTime, endTime: asset.endTime }
-          : {}),
-      }),
-    );
+  // topK 内同源限额：同一原始视频（含其切片）最多占 2 席，
+  // 避免"一个视频的相似片段包揽全部候选"（用户反馈：同质化严重）
+  const MAX_PER_SOURCE = 2;
+  const perSource = new Map<string, number>();
+  const diversified: typeof scored = [];
+  for (const item of [...scored].sort((a, b) => b.score - a.score)) {
+    const source = item.asset.parentFile ?? item.asset.file;
+    const used = perSource.get(source) ?? 0;
+    if (used >= MAX_PER_SOURCE) continue;
+    perSource.set(source, used + 1);
+    diversified.push(item);
+    if (diversified.length >= (input.topK ?? 3)) break;
+  }
+
+  return diversified.map(({ asset, score }) =>
+    AssetCandidateSchema.parse({
+      id: asset.id,
+      path: path.join(ASSETS_DIR, asset.file),
+      description: asset.description,
+      tags: asset.tags,
+      durationSec: asset.durationSec,
+      score: Math.round(score * 100) / 100,
+      ...(asset.startTime !== undefined && asset.endTime !== undefined
+        ? { startTime: asset.startTime, endTime: asset.endTime }
+        : {}),
+      parentFile: asset.parentFile ?? asset.file,
+    }),
+  );
 }

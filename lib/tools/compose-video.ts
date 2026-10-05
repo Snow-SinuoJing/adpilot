@@ -90,26 +90,46 @@ export function buildNormalizeArgs(input: {
 }): string[] {
   const { w, h } = targetDims(input.aspectRatio);
 
-  // 画面短于目标：先慢放（≤1.45x）补齐，剩余用克隆末帧兜底
-  let videoChain = `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=${TARGET_FPS}`;
-  if (input.srcDur != null && input.srcDur > 0.1 && input.srcDur < input.durationSec) {
-    const slow = Math.min(input.durationSec / input.srcDur, MAX_SLOWMO);
+  // 画面短于目标：先慢放（≤1.45x）补足；仍不够用倒放回接（ping-pong）
+  // 循环补齐——画面持续运动，绝不用冻结末帧（用户反馈：停滞观感大打折扣）
+  const target = input.durationSec;
+  const normalize = `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=${TARGET_FPS}`;
+  let videoGraph: string;
+
+  if (input.srcDur != null && input.srcDur > 0.1 && input.srcDur < target) {
+    const slow = Math.min(target / input.srcDur, MAX_SLOWMO);
     const slowedDur = input.srcDur * slow;
-    videoChain += `,setpts=${slow.toFixed(4)}*PTS`;
-    if (slowedDur < input.durationSec - 0.05) {
-      videoChain += `,tpad=stop_mode=clone:stop_duration=${(input.durationSec - slowedDur).toFixed(2)}`;
+    const base = slow > 1.001 ? `${normalize},setpts=${slow.toFixed(4)}*PTS` : normalize;
+
+    if (slowedDur >= target - 0.05) {
+      videoGraph = `${base},trim=duration=${target.toFixed(2)},setpts=PTS-STARTPTS`;
+    } else {
+      // 需要几段正放/倒放拼接（每段长度 = slowedDur）
+      const parts = Math.max(2, Math.ceil(target / slowedDur - 0.001));
+      const pads = Array.from({ length: parts }, (_, i) => `[pp${i}]`);
+      const chain =
+        `${base}[base];` +
+        `[base]split=${parts}${pads.join("")};` +
+        pads
+          .map((p, i) => (i % 2 === 1 ? `${p}reverse[rv${i}];` : ""))
+          .filter(Boolean)
+          .join("") +
+        pads.map((_, i) => (i % 2 === 1 ? `[rv${i}]` : `[pp${i}]`)).join("") +
+        `concat=n=${parts}:v=1:a=0[cat];` +
+        `[cat]trim=duration=${target.toFixed(2)},setpts=PTS-STARTPTS`;
+      videoGraph = chain;
     }
   } else {
-    videoChain += `,tpad=stop_mode=clone:stop_duration=${input.durationSec.toFixed(2)}`;
+    videoGraph = `${normalize},trim=duration=${target.toFixed(2)},setpts=PTS-STARTPTS`;
   }
-  videoChain += ",format=yuv420p";
+  videoGraph += ",format=yuv420p";
 
   const args: string[] = ["-i", input.videoPath];
   if (input.audioPath) args.push("-i", input.audioPath);
 
   args.push(
     "-filter_complex",
-    `[0:v]${videoChain}[v]` +
+    `[0:v]${videoGraph}[v]` +
       (input.audioPath
         ? `;[1:a]aresample=44100,apad,atrim=duration=${input.durationSec.toFixed(2)}[a]`
         : `;anullsrc=r=44100:cl=mono,atrim=duration=${input.durationSec.toFixed(2)}[a]`),

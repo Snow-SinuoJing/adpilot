@@ -280,6 +280,7 @@ async function executeAction(
         (s) => s.status === "SEARCHING" && s.assetCandidates && !s.sourceStrategy,
       );
       await runBatch(projectId, siblings, (sceneId) => runPlanAssets(projectId, sceneId, deps));
+      enforceSceneDiversity(projectId, deps);
       return;
     }
 
@@ -381,6 +382,60 @@ async function runRetrieveAsset(projectId: string, sceneId: string): Promise<voi
         .map((c) => `${c.id}（${c.score.toFixed(2)}${c.startTime !== undefined ? ` · ${c.startTime}-${c.endTime}s` : ""}）${c.description}`)
         .join(" | ") || "没有候选",
   });
+}
+
+/**
+ * 跨场景去同源（用户反馈：同一视频的重复片段被反复选用）：
+ * 按镜头顺序检查每个"用道具间素材"的场景，同一原始视频只服务一个镜头；
+ * 撞车的镜头依次尝试换用自家候选里的不同来源，实在没有且能生成时转 AI 摄影师。
+ * 确定性代码执行，不依赖模型自觉。
+ */
+function enforceSceneDiversity(projectId: string, deps: OrchestratorDeps): void {
+  const store = getStore();
+  const state = store.get(projectId)!;
+
+  const usedSources = new Set<string>();
+  for (const scene of [...state.scenes].sort((a, b) => a.order - b.order)) {
+    if (scene.sourceStrategy !== "EXISTING_ASSET" && scene.sourceStrategy !== "FALLBACK") continue;
+    const selected = scene.selectedAsset;
+    if (!selected) continue;
+    const source = selected.parentFile ?? selected.id;
+    if (!usedSources.has(source)) {
+      usedSources.add(source);
+      continue;
+    }
+
+    // 与前面的镜头同源：先从本场景候选里找一个不同来源的合格候选
+    const alternative = (scene.assetCandidates ?? [])
+      .filter((c) => c.score >= 0.22 && (c.parentFile ?? c.id) !== source && !usedSources.has(c.parentFile ?? c.id))
+      .sort((a, b) => b.score - a.score)[0];
+
+    const canGenerate = deps.capabilities.video && canGenerateVideo(state);
+    store.update(projectId, (s) => {
+      const target = sceneOf(s, scene.id);
+      if (alternative) {
+        usedSources.add(alternative.parentFile ?? alternative.id);
+        target.selectedAsset = alternative;
+        target.sourceReason = `原候选与前面的镜头来自同一段素材——已换用不同来源的道具，避免画面重复。`;
+      } else if (canGenerate) {
+        target.sourceStrategy = "GENERATED_VIDEO";
+        target.selectedAsset = undefined;
+        target.generationPrompt = target.generationPrompt ?? buildGenerationPrompt(target, s.brief);
+        target.sourceReason = `道具间没有不重复的合适道具——转 AI 摄影师生成专属画面，避免与前面的镜头重复。`;
+      } else {
+        target.sourceReason = `候选道具全部与前面的镜头同源（暂无法生成）——保留最相近的一段。`;
+      }
+    });
+
+    const after = sceneOf(store.get(projectId)!, scene.id);
+    emit(projectId, {
+      type: "SCENE_UPDATED",
+      actor: "ASSET",
+      sceneId: scene.id,
+      title: `${scene.id} 画面来源调整：${after.sourceStrategy ? SOURCE_ZH[after.sourceStrategy] : "待决策"}`,
+      detail: after.sourceReason,
+    });
+  }
 }
 
 async function runPlanAssets(projectId: string, sceneId: string, deps: OrchestratorDeps): Promise<void> {
