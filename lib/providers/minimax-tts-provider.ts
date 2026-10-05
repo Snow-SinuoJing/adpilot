@@ -14,12 +14,12 @@ interface MiniMaxBaseResp {
 
 export function miniMaxTtsBody(input: TtsInput): Record<string, unknown> {
   const model = process.env.MINIMAX_TTS_MODEL?.trim() || "speech-02-hd";
-  const voice = process.env.MINIMAX_TTS_VOICE?.trim() || "male-qn-qingse";
+  const voice = process.env.MINIMAX_TTS_VOICE?.trim() || "Friendly_Person";
   return {
     model,
     text: input.text,
     stream: false,
-    voice_setting: { voice, speed: 1.0, pitch: 0.0 },
+    voice_setting: { voice_id: voice, speed: 1.0 },
     audio_setting: { sample_rate: 32_000, bitrate: 128_000, format: "mp3", channel: 1 },
   };
 }

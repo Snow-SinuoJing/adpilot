@@ -21,6 +21,8 @@ export interface VideoJobResult {
   /** Remote download URL, or a `local:` prefixed absolute path (fake provider). */
   videoUrl?: string;
   error?: string;
+  /** Extra provider metadata (e.g. native resolution of the generation). */
+  meta?: Record<string, unknown>;
 }
 
 export interface VideoProvider {

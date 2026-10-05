@@ -41,14 +41,24 @@ badged **"Replay of previous real run"** — it never pretends to be a live call
 
 ### Going live (real providers)
 
-1. `cp .env.example .env` and fill in `LLM_API_KEY` (default endpoint: Zhipu GLM) and
-   `MINIMAX_API_KEY`; set `LLM_MODE=live`, `VIDEO_PROVIDER=minimax`, `TTS_PROVIDER=minimax`.
-2. Smoke: run once, confirm a real generated video + real voiceover appear.
-3. Record the fallback: `RECORD_REPLAY_NAME=demo-brazil npm run dev`, run the demo brief once,
-   restart without the variable. A ▶ demo-brazil chip now appears on the home page.
+Verified working configuration (2026-10, live smoke-tested):
 
-Model names are env-driven (`LLM_MODEL`, `LLM_VISION_MODEL`, `MINIMAX_VIDEO_MODEL`,
-`MINIMAX_TTS_MODEL`, `MINIMAX_TTS_VOICE`) — verify current names against your provider console.
+- **LLM**: Zhipu GLM — `LLM_MODEL=glm-4.6` (agents; ~20–30s per call, it's a thinking model),
+  `LLM_VISION_MODEL=glm-4.5v` (Critic; v-series models are NOT listed by /models — call by name).
+  The OpenAI Agents SDK path fails GLM's schema checks and auto-falls back to the direct client
+  (by design, see `lib/agents/llm.ts`).
+- **Video**: `MiniMax-Hailuo-02` — t2v ignores aspect params, so the adapter attaches a
+  deterministic 9:16 first frame (`first_frame_image`, data-URL base64) to force vertical output;
+  results arrive as `file_id` and are resolved via `/v1/files/retrieve`. ~90–150s per clip.
+- **TTS**: `speech-02-hd` with `voice_id=Friendly_Person` (t2a_v2 requires `voice_id`, not `voice`).
+
+1. `cp .env.example .env`, fill `LLM_API_KEY` + `MINIMAX_API_KEY`, set `LLM_MODE=live`,
+   `VIDEO_PROVIDER=minimax`, `TTS_PROVIDER=minimax`. **Keep the MiniMax account funded** — one
+   standard run is 3–4 paid generations (~¥1/each at 768P); an empty balance fails the run with a
+   categorized `VIDEO_PROVIDER` error (which is itself a nice demo of the error handling).
+2. Smoke: run the demo brief once end-to-end (~10–15 min live).
+3. Record the fallback: `RECORD_REPLAY_NAME=demo-brazil npm run dev`, run once, restart clean.
+   The ▶ chip on the home page now replays that real run.
 
 ## Architecture
 

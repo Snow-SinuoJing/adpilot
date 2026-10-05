@@ -6,7 +6,7 @@ import { TEST_DATA_DIR } from "./setup";
 
 // ── pure builders & parsers ────────────────────────────────────────────────
 import { cacheKey } from "@/lib/tools/generate-video";
-import { parseMiniMaxQueryResponse, miniMaxSubmitBody } from "@/lib/providers/minimax-video-provider";
+import { parseMiniMaxQueryResponse, parseMiniMaxFileRetrieve, miniMaxSubmitBody } from "@/lib/providers/minimax-video-provider";
 import { buildNormalizeArgs, buildConcatArgs } from "@/lib/tools/compose-video";
 import { frameTimestamps } from "@/lib/tools/extract-frames";
 import { estimateSpeechSec, silentTrackArgs } from "@/lib/providers/fake-tts-provider";
@@ -65,15 +65,21 @@ describe("video cache key (doc §17 Mode B)", () => {
 });
 
 describe("MiniMax provider adapters", () => {
-  it("maps query statuses correctly", () => {
+  it("maps query statuses correctly (2026 file_id flow)", () => {
     expect(parseMiniMaxQueryResponse({ status: "Queueing" }).status).toBe("PENDING");
     expect(parseMiniMaxQueryResponse({ status: "Processing" }).status).toBe("RUNNING");
-    expect(parseMiniMaxQueryResponse({ status: "Success", file: { download_url: "https://x/v.mp4" } })).toEqual({
-      status: "COMPLETED",
-      videoUrl: "https://x/v.mp4",
-    });
+    const success = parseMiniMaxQueryResponse({ status: "Success", file_id: 12345, video_width: 1080, video_height: 1920 });
+    expect(success.status).toBe("COMPLETED");
+    expect(success.fileId).toBe("12345");
+    expect(success.width).toBe(1080);
     expect(parseMiniMaxQueryResponse({ status: "Fail" }).status).toBe("FAILED");
     expect(parseMiniMaxQueryResponse({ base_resp: { status_code: 1004, status_msg: "rate limited" } }).status).toBe("FAILED");
+  });
+
+  it("resolves download urls via files/retrieve", () => {
+    expect(parseMiniMaxFileRetrieve({ file: { download_url: "https://cdn/v.mp4" } })).toBe("https://cdn/v.mp4");
+    expect(() => parseMiniMaxFileRetrieve({ base_resp: { status_code: 1004, status_msg: "expired" } })).toThrow(/expired/);
+    expect(() => parseMiniMaxFileRetrieve({ file: {} })).toThrow(/no download_url/);
   });
 
   it("submit body carries model + prompt optimizer", () => {
