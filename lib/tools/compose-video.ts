@@ -2,7 +2,7 @@ import fs from "node:fs";
 import type { ProjectState } from "@/lib/state/schema";
 import { localPathForMedia, mediaFile, urlForMedia } from "@/lib/media";
 import { runFfmpeg, probeDurationSec } from "@/lib/ffmpeg";
-import { getBgmProvider, synthBgm, buildBgmMixArgs, type BgmMood } from "@/lib/providers/bgm-provider";
+import { getBgmProvider, buildBgmMixArgs, type BgmMood } from "@/lib/providers/bgm-provider";
 
 /**
  * compose_video（设计文档 §8.5，按用户反馈 #2/#3 重构）：
@@ -217,11 +217,12 @@ export async function composeFinalVideo(projectId: string, state: ProjectState):
     const totalSec = durations.reduce((a, b) => a + b, 0);
     const bgmPath = mediaFile(projectId, "bgm.mp3");
     try {
-      await synthBgm({ mood: moodOf(state), durationSec: totalSec + 1, outPath: bgmPath });
+      await bgm.synth({ mood: moodOf(state), durationSec: totalSec + 1, outPath: bgmPath });
       await runFfmpeg(buildBgmDubArgs({ videoNoBgm, bgmPath, outPath: final, totalSec: totalSec + 1 }));
       finalFile = final;
     } catch (error) {
-      console.warn("[bgm] 背景音乐混音失败，使用纯人声版本:", error);
+      // 真音乐生成失败：保留纯人声版本，绝不用合成音兜底
+      console.warn("[bgm] 音乐生成/混音失败，本片无 BGM:", error);
     }
   }
   if (finalFile !== final) {

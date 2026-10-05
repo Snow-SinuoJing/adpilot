@@ -91,7 +91,7 @@ describe("bgm duck-mix args (用户反馈 #3)", () => {
     expect(joined).toContain("sidechaincompress");
     expect(joined).toContain("afade=t=in");
     expect(joined).toContain("amix=inputs=2");
-    expect(joined).toContain("volume=0.32");
+    expect(joined).toContain("volume=0.35");
   });
 });
 
