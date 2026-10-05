@@ -7,7 +7,7 @@ import { TEST_DATA_DIR } from "./setup";
 // ── pure builders & parsers ────────────────────────────────────────────────
 import { cacheKey } from "@/lib/tools/generate-video";
 import { parseMiniMaxQueryResponse, parseMiniMaxFileRetrieve, miniMaxSubmitBody, parseMiniMaxV2QueryResponse, miniMaxV2SubmitBody } from "@/lib/providers/minimax-video-provider";
-import { buildNormalizeArgs, buildConcatArgs } from "@/lib/tools/compose-video";
+import { buildNormalizeArgs, buildConcatArgs, planSceneDurations, buildBgmDubArgs } from "@/lib/tools/compose-video";
 import { clampWindow } from "@/lib/tools/segment-refine";
 import { buildFakeVideoArgs as buildFakeArgsAspect } from "@/lib/providers/fake-video-provider";
 import { frameTimestamps } from "@/lib/tools/extract-frames";
@@ -60,6 +60,38 @@ describe("asset understanding: long-clip segmentation", () => {
     }
     expect(MAX_SEGMENT_SEC).toBe(8); // 8s 粒度让"喝饮料"级别的动作更容易整段落入单个切片
     expect(MATCH_THRESHOLD).toBeLessThanOrEqual(0.25); // 匹配机制放宽（用户反馈 #2）
+  });
+});
+
+describe("audio-driven duration rebalancing (用户反馈 #2)", () => {
+  it("extends a scene for a longer voiceover and reclaims time from others", () => {
+    // 计划 [4,6,5]，S2 配音 8.2s → S2 需要 8.2+0.5=8.7 但封顶 6+3=9；其余扣回，总和仍 15
+    const dur = planSceneDurations([4, 6, 5], [2.0, 8.2, 2.5], 15);
+    const sum = dur.reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(15, 1);
+    expect(dur[1]).toBeGreaterThanOrEqual(8.2); // 配音永远说得完
+    expect(dur[1]).toBeLessThanOrEqual(9);
+  });
+
+  it("keeps everything when voices fit inside planned durations", () => {
+    expect(planSceneDurations([4, 6, 5], [3, 4, 4], 15).reduce((a, b) => a + b, 0)).toBeCloseTo(15, 1);
+  });
+
+  it("never shrinks below a scene's voice floor", () => {
+    const dur = planSceneDurations([3, 6, 6], [7.5, 7.5, 7.5], 15);
+    // 总需求 24 远超 15：全触底时宁超勿切语音
+    for (const d of dur) expect(d).toBeGreaterThanOrEqual(7.5);
+  });
+});
+
+describe("bgm duck-mix args (用户反馈 #3)", () => {
+  it("mixes bgm under voice with sidechain ducking and fades", () => {
+    const args = buildBgmDubArgs({ videoNoBgm: "v.mp4", bgmPath: "b.mp3", outPath: "o.mp4", totalSec: 15 });
+    const joined = args.join(" ");
+    expect(joined).toContain("sidechaincompress");
+    expect(joined).toContain("afade=t=in");
+    expect(joined).toContain("amix=inputs=2");
+    expect(joined).toContain("volume=0.32");
   });
 });
 
@@ -191,6 +223,17 @@ describe("ffmpeg command builders", () => {
     expect(args.join(" ")).toContain("atrim=duration=5");
     expect(args.join(" ")).toContain("-c:v libx264");
     expect(args.join(" ")).toContain("-c:a aac");
+  });
+
+  it("prefers slow-motion over frozen frames when footage is short", () => {
+    // 目标 5.5s、素材 4s：慢放 1.375x 恰好补齐，无需冻结帧
+    const exact = buildNormalizeArgs({ videoPath: "in.mp4", durationSec: 5.5, outPath: "o.mp4", srcDur: 4 });
+    expect(exact.join(" ")).toContain("setpts=1.3750*PTS");
+    expect(exact.join(" ")).not.toContain("tpad");
+    // 差距过大（4s→6s）：先慢放 1.45x，剩余 0.2s 才克隆末帧兜底
+    const capped = buildNormalizeArgs({ videoPath: "in.mp4", durationSec: 6, outPath: "o.mp4", srcDur: 4 });
+    expect(capped.join(" ")).toContain("setpts=1.4500*PTS");
+    expect(capped.join(" ")).toContain("tpad");
   });
 
   it("normalize targets 16:9 when the brief asks for landscape (用户反馈 #2)", () => {

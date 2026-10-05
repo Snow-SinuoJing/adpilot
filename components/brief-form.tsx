@@ -54,7 +54,7 @@ export function BriefForm() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "上传失败");
       setPriorityIds((prev) => [...prev, ...(body.added ?? [])].slice(-50));
-      setUploadNote(`已上传 ${body.added.length} 个素材，本次广告计划将优先检索它们`);
+      setUploadNote(`已上传 ${body.added.length} 个素材，正在解析…`);
     } catch (e) {
       setUploadNote(e instanceof Error ? e.message : String(e));
     } finally {
@@ -62,6 +62,45 @@ export function BriefForm() {
       if (clipInput.current) clipInput.current.value = "";
     }
   };
+
+  // 上传素材的解析状态轮询：解析完成前提示用户等待（用户反馈 #1）
+  const [analysisStatus, setAnalysisStatus] = useState<Array<{ id: string; label: string; segs: number; pending: boolean }>>([]);
+  useEffect(() => {
+    if (priorityIds.length === 0) {
+      setAnalysisStatus([]);
+      return;
+    }
+    let alive = true;
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/assets");
+        const body = await response.json();
+        if (!alive) return;
+        const assets: Array<{ id: string; description: string; analysis?: string; file?: string; parentFile?: string; durationSec?: number }> = body.assets ?? [];
+        const status = priorityIds.map((id) => {
+          const entry = assets.find((a) => a.id === id);
+          const segs = entry ? assets.filter((a) => a.parentFile === entry.file).length : 0;
+          return {
+            id,
+            label: (entry?.description ?? id).slice(0, 26),
+            segs,
+            pending: entry?.analysis === "pending" || (entry != null && entry.analysis !== "done" && (entry.durationSec ?? 0) > 12),
+          };
+        });
+        setAnalysisStatus(status);
+      } catch {
+        /* 轮询失败忽略，下一轮再试 */
+      }
+    };
+    void poll();
+    const timer = setInterval(poll, 4000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [priorityIds]);
+
+  const analysisPending = analysisStatus.some((s) => s.pending);
 
   const uploadReference = async (file: File | null) => {
     if (!file) return;
@@ -115,6 +154,9 @@ export function BriefForm() {
   };
 
   const submit = async () => {
+    if (analysisPending && !confirm("部分素材还在解析中，现在生成可能检索不到它们的切片。确定继续吗？")) {
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -199,6 +241,24 @@ export function BriefForm() {
           </button>
           <input ref={clipInput} type="file" accept="video/*" multiple hidden onChange={(e) => void uploadClips(e.target.files)} />
           {uploadNote && <p className="text-[11px] text-emerald-300">{uploadNote}</p>}
+          {analysisStatus.length > 0 && (
+            <div className="space-y-1">
+              {analysisStatus.map((s) => (
+                <p key={s.id} className={`flex items-center gap-1.5 text-[11px] ${s.pending ? "text-amber-300" : "text-emerald-300"}`}>
+                  {s.pending ? (
+                    <span className="animate-pulse">⏳ {s.label} · 镜头拆分/视觉描述中…</span>
+                  ) : (
+                    <span>✓ {s.label} · 已解析{s.segs > 0 ? ` ${s.segs} 段切片` : ""}</span>
+                  )}
+                </p>
+              ))}
+              {analysisPending && (
+                <p className="text-[11px] text-amber-400/90">
+                  建议等解析完成再生成，否则可能检索不到这些素材的切片
+                </p>
+              )}
+            </div>
+          )}
           {priorityIds.length > 0 && (
             <button type="button" onClick={() => setPriorityIds([])} className="text-[11px] text-zinc-500 hover:text-zinc-300">
               清除优先（已选 {priorityIds.length} 个）
