@@ -57,7 +57,7 @@ export function SceneCard({ scene, landscape = false }: { scene: SceneState; lan
             />
           ) : (
             <div className={`grid size-full place-items-center px-4 text-center text-xs text-zinc-600 ${busy ? "animate-pulse" : ""}`}>
-              {scene.status === "PLANNED" ? "等待生成" : `${SCENE_STATUS_ZH[scene.status]}…`}
+              {scene.status === "PLANNED" ? "等待生成" : scene.status === "FAILED" ? "生成失败——详情见下方" : `${SCENE_STATUS_ZH[scene.status]}…`}
             </div>
           )}
 

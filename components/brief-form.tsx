@@ -464,7 +464,7 @@ export function BriefForm() {
                 key={item.projectId}
                 type="button"
                 onClick={() => router.push(`/project/${item.projectId}`)}
-                className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/60 text-left transition hover:border-zinc-600"
+                className="flex flex-col items-stretch justify-start overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/60 text-left transition hover:border-zinc-600"
               >
                 {item.hasFinal && (
                   <video
