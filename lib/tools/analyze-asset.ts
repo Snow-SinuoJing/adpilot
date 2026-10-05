@@ -83,8 +83,9 @@ const CaptionSchema = z.object({
 const FALLBACK_VISION_MODEL = "glm-4v-flash"; // 免费档：主模型余额不足时兜底，解析永不一笔带过
 
 async function captionSegment(
-  framePath: string,
   clipPath: string | null,
+  segmentIndex: number,
+  extractFrame: (i: number) => Promise<string>,
   parentDescription: string,
   timeRange: string,
 ): Promise<{ description: string; tags: string[] }> {
@@ -116,7 +117,7 @@ async function captionSegment(
   };
 
   // 1) 整段视频直读：模型看到动作与运动过程，描述对"按动作检索"最有价值
-  if (videoOn) {
+  if (videoOn && clipPath) {
     const b64 = fs.readFileSync(clipPath).toString("base64");
     for (const model of MODEL_CHAIN) {
       try {
@@ -127,7 +128,8 @@ async function captionSegment(
     }
     console.warn("[analyze] 视频直读全链失败，退回关键帧模式");
   }
-  // 2) 关键帧单图（同一条降级链）
+  // 2) 关键帧单图（同一条降级链）——此时才真正抽帧
+  const framePath = await extractFrame(segmentIndex);
   const b64 = fs.readFileSync(framePath).toString("base64");
   for (const model of MODEL_CHAIN) {
     try {
@@ -174,38 +176,48 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "adpilot-analyze-"));
 
-  // 先抽全部关键帧 + 各段小视频（本地 ffmpeg，快；360p 控制 token）
-  const framePaths: string[] = [];
-  const clipPaths: Array<string | null> = [];
-  for (const [i, segment] of segments.entries()) {
-    const mid = (segment.start + segment.end) / 2;
-    const framePath = path.join(tmpDir, `frame-${i}.jpg`);
-    await runFfmpeg(["-ss", String(mid), "-i", videoPath, "-frames:v", "1", "-q:v", "4", framePath]);
-    framePaths.push(framePath);
+  // 抽取并行化（并发 3）；关键帧只在视频直读失败时才按需抽取——成功路径零浪费
+  const clipPaths: Array<string | null> = new Array(segments.length).fill(null);
+  const extractClip = async (i: number) => {
     const clipPath = path.join(tmpDir, `clip-${i}.mp4`);
     try {
       await runFfmpeg([
-        "-ss", String(segment.start), "-i", videoPath,
-        "-t", (segment.end - segment.start).toFixed(2),
+        "-ss", String(segments[i].start), "-i", videoPath,
+        "-t", (segments[i].end - segments[i].start).toFixed(2),
         "-vf", "scale=360:-2", "-an",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "30",
         clipPath,
       ]);
-      clipPaths.push(clipPath);
+      clipPaths[i] = clipPath;
     } catch {
-      clipPaths.push(null); // 片段抽取失败时退回关键帧模式
+      clipPaths[i] = null; // 片段抽取失败时退回关键帧模式
     }
-  }
+  };
+  const extractFrame = async (i: number): Promise<string> => {
+    const framePath = path.join(tmpDir, `frame-${i}.jpg`);
+    const mid = (segments[i].start + segments[i].end) / 2;
+    await runFfmpeg(["-ss", String(mid), "-i", videoPath, "-frames:v", "1", "-q:v", "4", framePath]);
+    return framePath;
+  };
+  let extractCursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(3, segments.length) }, async () => {
+      while (extractCursor < segments.length) {
+        const i = extractCursor++;
+        await extractClip(i);
+      }
+    }),
+  );
 
   // 视觉描述并发执行（原为串行逐段等待，一条素材动辄几分钟——并发 4 缩短到 1/3 左右）
-  const CONCURRENCY = clipPaths.some(Boolean) ? 3 : 4;
+  const CONCURRENCY = clipPaths.some(Boolean) ? 3 : 4; // 视频直读 token 重、RPM 紧，3 已是实测安全上限
   const children: SegmentEntry[] = new Array(segments.length);
   let cursor = 0;
   const captionOne = async (i: number) => {
     const segment = segments[i];
     const timeRange = formatRange(segment.start, segment.end);
     try {
-      const caption = await captionSegment(framePaths[i], clipPaths[i], parent.description, timeRange);
+      const caption = await captionSegment(clipPaths[i], i, extractFrame, parent.description, timeRange);
       children[i] = {
         id: `${parent.id}_seg${i + 1}`,
         file: parent.file,
