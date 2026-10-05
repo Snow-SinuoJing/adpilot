@@ -9,10 +9,10 @@ export function CreativeCanvas({ state }: { state: ProjectState }) {
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <div className="flex items-center justify-between px-1">
+      <div className="px-1">
         <h2 className="text-sm font-semibold text-zinc-300">创意画布</h2>
         {state.strategy && (
-          <p className="max-w-[60%] truncate text-xs text-zinc-500" title={state.strategy.concept}>
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-500" title={state.strategy.concept}>
             {state.strategy.concept}
           </p>
         )}
