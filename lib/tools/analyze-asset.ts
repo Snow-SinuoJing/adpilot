@@ -19,7 +19,7 @@ const execFileAsync = promisify(execFile);
  */
 
 export const MIN_SEGMENT_SEC = 2;
-export const MAX_SEGMENT_SEC = 15;
+export const MAX_SEGMENT_SEC = 8;
 export const MAX_SEGMENTS_PER_ASSET = 12;
 
 /** Pure: merge/trim shot boundaries into usable segments. */

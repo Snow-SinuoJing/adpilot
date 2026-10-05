@@ -32,6 +32,7 @@ const SYSTEM = `你是广告工作室的素材规划师。针对单个场景，�
   * 不做跨镜头引用——每次生成相互独立；
   * 包含光影逻辑、镜头语言、真实材质，只用物理道具——禁止粒子、全息、悬浮物体；
   * 以 "photorealistic, raw photo, cinematic lighting" 收尾。
+- 【产品主体硬规则】候选素材的画面主体（或其描述）必须与广告产品本身一致——为饮料选素材时，游戏画面再"精彩"也视为不匹配，必须排除。
 - reason：一句用户可见的简体中文说明。confidence 表示把握程度（0–1）。`;
 
 /** Code-level guardrail applied to both mock and live answers. */
@@ -101,7 +102,7 @@ export function buildGenerationPrompt(scene: SceneState, brief: AdBrief): string
     CTA: "warm celebratory moment, natural gesture toward the phone",
   };
   return [
-    `Vertical 9:16 casual-game ad scene for ${brief.productName} (${brief.market} market).`,
+    `${brief.aspectRatio === "16:9" ? "Horizontal 16:9" : "Vertical 9:16"} ad scene for ${brief.productName} (${brief.market} market). The advertised product MUST be the visual subject.`,
     `Subject: ${scene.visualIntent}`,
     `Direction: ${styleByPurpose[scene.purpose]}. Independent self-contained shot.`,
     `Light & texture: natural practical light, realistic skin and fabric texture, physically plausible props only.`,
@@ -123,7 +124,12 @@ export async function planAsset(
         system: SYSTEM,
         user: JSON.stringify(
           {
-            brief: { productName: brief.productName, market: brief.market, audience: brief.audience },
+            brief: {
+              productName: brief.productName,
+              productDescription: brief.productDescription,
+              market: brief.market,
+              audience: brief.audience,
+            },
             scene: {
               id: scene.id,
               purpose: scene.purpose,

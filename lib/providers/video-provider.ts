@@ -11,7 +11,7 @@ import { FakeVideoProvider } from "./fake-video-provider";
 export interface VideoSubmitInput {
   prompt: string;
   durationSec: number;
-  aspectRatio: "9:16";
+  aspectRatio: "9:16" | "16:9";
 }
 
 export type VideoJobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";

@@ -10,9 +10,11 @@ import { runFfmpeg, probeDurationSec } from "@/lib/ffmpeg";
  * Command builders are exported pure for unit tests.
  */
 
-const TARGET_W = 1080;
-const TARGET_H = 1920;
 const TARGET_FPS = 30;
+
+function targetDims(aspectRatio?: string): { w: number; h: number } {
+  return aspectRatio === "16:9" ? { w: 1920, h: 1080 } : { w: 1080, h: 1920 };
+}
 
 /** Normalize one scene to a uniform, concat-safe segment. Pure arg builder. */
 export function buildNormalizeArgs(input: {
@@ -20,8 +22,10 @@ export function buildNormalizeArgs(input: {
   audioPath?: string;
   durationSec: number;
   outPath: string;
+  aspectRatio?: "9:16" | "16:9";
 }): string[] {
-  const scale = `scale=${TARGET_W}:${TARGET_H}:force_original_aspect_ratio=increase,crop=${TARGET_W}:${TARGET_H},fps=${TARGET_FPS},format=yuv420p`;
+  const { w, h } = targetDims(input.aspectRatio);
+  const scale = `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=${TARGET_FPS},format=yuv420p`;
   // hold the last frame if the source is shorter than planned
   const videoFilters = `tpad=stop_mode=clone:stop_duration=${input.durationSec}`;
 
@@ -75,6 +79,7 @@ export async function composeFinalVideo(projectId: string, state: ProjectState):
       audioPath: audio,
       durationSec: scene.durationSec,
       outPath: segment,
+      aspectRatio: state.brief.aspectRatio,
     }));
     segments.push(segment);
   }

@@ -79,6 +79,37 @@ export function allowedActions(state: ProjectState, caps: Capabilities): Directo
   return actions;
 }
 
+/** Scenes eligible for a given scene-scoped action — the orchestrator uses
+ *  this to fan a decision out to all sibling scenes in parallel (用户反馈 #1). */
+export function scenesMatchingAction(
+  action: DirectorAction,
+  state: ProjectState,
+  caps: Capabilities,
+): SceneState[] {
+  switch (action) {
+    case "RETRIEVE_ASSET":
+      return state.scenes.filter((s) => s.status === "PLANNED");
+    case "PLAN_ASSETS":
+      return state.scenes.filter(
+        (s) => s.status === "SEARCHING" && s.assetCandidates && !s.sourceStrategy,
+      );
+    case "GENERATE_VIDEO":
+      return state.scenes.filter(
+        (s) =>
+          s.sourceStrategy === "GENERATED_VIDEO" &&
+          !s.videoUrl &&
+          (s.status === "SEARCHING" || s.status === "REPAIRING") &&
+          s.generationPrompt,
+      );
+    case "EVALUATE_SCENE":
+      return state.scenes.filter((s) => s.videoUrl && !s.qa && s.status !== "READY");
+    case "REPAIR_SCENE":
+      return state.scenes.filter((s) => s.qa?.decision === "REPAIR" && s.status === "REPAIRING");
+    default:
+      return [];
+  }
+}
+
 /** Compact global view handed to the Director LLM (§2 P3). */
 export interface DirectorView {
   status: ProjectState["status"];

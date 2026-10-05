@@ -81,11 +81,21 @@ describe("scene state machine (doc §12)", () => {
     transitionScene(state, "S2", "READY");
   });
 
+  it("routes existing-asset scenes through evaluation (SEARCHING/REPAIRING → EVALUATING)", () => {
+    const state = baseState();
+    transitionScene(state, "S1", "SEARCHING");
+    transitionScene(state, "S1", "EVALUATING");
+    transitionScene(state, "S1", "REPAIRING");
+    transitionScene(state, "S1", "EVALUATING");
+    transitionScene(state, "S1", "READY");
+  });
+
   it("rejects illegal transitions", () => {
     const state = baseState();
     expect(() => transitionScene(state, "S1", "READY")).toThrow(StateTransitionError);
     transitionScene(state, "S1", "SEARCHING");
-    expect(() => transitionScene(state, "S1", "EVALUATING")).toThrow(StateTransitionError);
+    expect(() => transitionScene(state, "S1", "REPAIRING")).toThrow(StateTransitionError);
+    transitionScene(state, "S1", "EVALUATING");
     transitionScene(state, "S1", "READY");
     expect(() => transitionScene(state, "S1", "SEARCHING")).toThrow(StateTransitionError);
   });

@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   audience: "",
   platform: "TikTok" as AdBrief["platform"],
   durationSec: 15 as AdBrief["durationSec"],
+  aspectRatio: "9:16" as NonNullable<AdBrief["aspectRatio"]>,
   additionalRequirement: "",
 };
 
@@ -60,6 +61,7 @@ export function BriefForm() {
       audience: DEMO_BRIEF.audience,
       platform: DEMO_BRIEF.platform,
       durationSec: DEMO_BRIEF.durationSec,
+      aspectRatio: DEMO_BRIEF.aspectRatio ?? "9:16",
       additionalRequirement: DEMO_BRIEF.additionalRequirement ?? "",
     });
     setError(null);
@@ -76,6 +78,7 @@ export function BriefForm() {
         audience: form.audience.trim(),
         platform: form.platform,
         durationSec: form.durationSec,
+        aspectRatio: form.aspectRatio,
         ...(form.additionalRequirement.trim() ? { additionalRequirement: form.additionalRequirement.trim() } : {}),
       };
 
@@ -166,6 +169,16 @@ export function BriefForm() {
             <select className={inputClass} value={form.durationSec} onChange={(e) => set("durationSec", Number(e.target.value) as AdBrief["durationSec"])}>
               <option value={15}>15 秒</option>
               <option value={20}>20 秒</option>
+            </select>
+          </Field>
+          <Field label="画幅" className="col-span-2">
+            <select
+              className={inputClass}
+              value={form.aspectRatio}
+              onChange={(e) => set("aspectRatio", e.target.value as NonNullable<AdBrief["aspectRatio"]>)}
+            >
+              <option value="9:16">竖屏 9:16（手机信息流）</option>
+              <option value="16:9">横屏 16:9（PC / 电视）</option>
             </select>
           </Field>
           <Field label="附加要求（可选）" className="col-span-2">

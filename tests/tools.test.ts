@@ -8,6 +8,8 @@ import { TEST_DATA_DIR } from "./setup";
 import { cacheKey } from "@/lib/tools/generate-video";
 import { parseMiniMaxQueryResponse, parseMiniMaxFileRetrieve, miniMaxSubmitBody } from "@/lib/providers/minimax-video-provider";
 import { buildNormalizeArgs, buildConcatArgs } from "@/lib/tools/compose-video";
+import { clampWindow } from "@/lib/tools/segment-refine";
+import { buildFakeVideoArgs as buildFakeArgsAspect } from "@/lib/providers/fake-video-provider";
 import { frameTimestamps } from "@/lib/tools/extract-frames";
 import { estimateSpeechSec, silentTrackArgs } from "@/lib/providers/fake-tts-provider";
 import { buildFakeVideoArgs } from "@/lib/providers/fake-video-provider";
@@ -41,10 +43,10 @@ describe("asset understanding: long-clip segmentation", () => {
     ]);
   });
 
-  it("splits one long take into equal parts", () => {
+  it("splits one long take into equal parts (capped at 4)", () => {
     const segments = buildSegments([], 40);
-    expect(segments).toHaveLength(3);
-    expect(segments[0].end - segments[0].start).toBeCloseTo(40 / 3, 1);
+    expect(segments).toHaveLength(4);
+    expect(segments[0].end - segments[0].start).toBeCloseTo(10, 1);
   });
 
   it("caps absurdly long takes at 4 parts", () => {
@@ -55,7 +57,7 @@ describe("asset understanding: long-clip segmentation", () => {
     for (const segments of [buildSegments([1, 1.2, 1.5], 30), buildSegments([0.6], 8)]) {
       for (const s of segments) expect(s.end - s.start).toBeGreaterThanOrEqual(MIN_SEGMENT_SEC);
     }
-    expect(MAX_SEGMENT_SEC).toBe(15);
+    expect(MAX_SEGMENT_SEC).toBe(8); // 8s 粒度让"喝饮料"级别的动作更容易整段落入单个切片
     expect(MATCH_THRESHOLD).toBeLessThanOrEqual(0.25); // 匹配机制放宽（用户反馈 #2）
   });
 });
@@ -138,6 +140,25 @@ describe("ffmpeg command builders", () => {
     expect(args.join(" ")).toContain("atrim=duration=5");
     expect(args.join(" ")).toContain("-c:v libx264");
     expect(args.join(" ")).toContain("-c:a aac");
+  });
+
+  it("normalize targets 16:9 when the brief asks for landscape (用户反馈 #2)", () => {
+    const args = buildNormalizeArgs({ videoPath: "in.mp4", durationSec: 5, outPath: "out.mp4", aspectRatio: "16:9" });
+    expect(args.join(" ")).toContain("1920:1080");
+    const portrait = buildNormalizeArgs({ videoPath: "in.mp4", durationSec: 5, outPath: "out.mp4" });
+    expect(portrait.join(" ")).toContain("1080:1920");
+  });
+
+  it("fake provider renders landscape when requested", () => {
+    const landscape = buildFakeArgsAspect({ dest: "f.mp4", durationSec: 5, labelLines: ["x"], seedText: "s", aspectRatio: "16:9" });
+    expect(landscape.join(" ")).toContain("1920x1080");
+  });
+
+  it("refined windows are clamped inside the segment (用户反馈 #3)", () => {
+    const segment = { start: 10, end: 20 };
+    expect(clampWindow({ start: 5, end: 30 }, segment)).toEqual({ start: 10, end: 20 });
+    expect(clampWindow({ start: 12, end: 13 }, segment)).toEqual({ start: 12, end: 14 });
+    expect(clampWindow({ start: 18, end: 25 }, segment)).toEqual({ start: 18, end: 20 });
   });
 
   it("normalize without voiceover synthesizes silence", () => {

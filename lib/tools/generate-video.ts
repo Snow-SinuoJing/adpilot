@@ -19,6 +19,7 @@ export interface SceneVideoRequest {
   prompt: string;
   durationSec: number;
   generationIndex: number;
+  aspectRatio?: "9:16" | "16:9";
   onProgress?: ProgressFn;
 }
 
@@ -115,8 +116,8 @@ export async function pollVideoJob(
 
 /** Submit with exponential retry for transient 5xx-class failures. */
 async function submitWithRetry(
-  provider: { submit(input: { prompt: string; durationSec: number; aspectRatio: "9:16" }): Promise<{ jobId: string }> },
-  input: { prompt: string; durationSec: number },
+  provider: { submit(input: { prompt: string; durationSec: number; aspectRatio: "9:16" | "16:9" }): Promise<{ jobId: string }> },
+  input: { prompt: string; durationSec: number; aspectRatio: "9:16" | "16:9" },
   onProgress?: ProgressFn,
 ): Promise<string> {
   let lastError: unknown;
@@ -150,12 +151,13 @@ export async function generateSceneVideo(request: SceneVideoRequest): Promise<Sc
   const provider = getVideoProvider();
   if (!provider) throw new Error("no video provider configured");
 
+  const aspect = request.aspectRatio ?? "9:16";
   const key = cacheKey({
     provider: provider.name,
     model: provider.model,
     prompt: request.prompt,
     durationSec: request.durationSec,
-    aspectRatio: "9:16",
+    aspectRatio: aspect,
   });
 
   // Cache-aware live mode (§17 Mode B): reuse a real generation for an
@@ -183,6 +185,7 @@ export async function generateSceneVideo(request: SceneVideoRequest): Promise<Sc
   const jobId = await submitWithRetry(provider, {
     prompt: request.prompt,
     durationSec: request.durationSec,
+    aspectRatio: aspect,
   }, request.onProgress);
   request.onProgress?.(`任务已受理：${jobId}`, { jobId });
 

@@ -77,11 +77,12 @@ describe("e2e offline demo run", () => {
     expect(s2.qa?.decision).toBe("PASS");
     expect(s2.generationPrompt).toContain("[repair 1]");
 
-    // S1/S3 untouched by repair
+    // S1/S3（素材类）现在也要过评审——通过但不产生修复（用户反馈 #4）
     for (const id of ["S1", "S3"] as const) {
       const scene = state.scenes.find((s) => s.id === id)!;
       expect(scene.repairHistory).toHaveLength(0);
-      expect(scene.qa).toBeUndefined();
+      expect(scene.qa?.decision).toBe("PASS");
+      expect(scene.qa?.score).toBe(82);
     }
 
     // both generations exist on disk
@@ -107,6 +108,8 @@ describe("e2e offline demo run", () => {
       expect(fs.existsSync(path.join(TMP_DATA, "media", projectId, `${scene.id}-voice.mp3`))).toBe(true);
     }
     const types = state.events.map((e) => e.type);
+    // 并行分发（用户反馈 #1）：至少一个阶段出现了多场景并行
+    expect(state.events.some((e) => e.title.includes("并行执行"))).toBe(true);
     for (const expected of ["PROJECT_STARTED", "DECISION_MADE", "CRITIC_COMPLETED", "REPAIR_STARTED", "PROJECT_COMPLETED"]) {
       expect(types).toContain(expected);
     }

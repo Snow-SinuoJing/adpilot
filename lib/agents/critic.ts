@@ -19,7 +19,7 @@ const SYSTEM = `你是竖版信息流广告的严格多模态质检评审。
 对每个维度打 0–100 分：
 - intentAlignment 意图一致性：画面是否表达了场景意图
 - visualQuality 画面质量：清晰度、稳定性、真实感、无 AI 伪影
-- productVisibility 产品可见度：被推广的游戏/产品体验是否清晰可见
+- productVisibility 产品可见度：画面主体必须是广告产品本身（不是同类或无关产品）——主体与产品不符时必须打低分并列 high 级问题
 - localization 本地化：是否符合目标市场审美
 - safetyAndText 安全与文字：无乱码文字、无 Logo/UI、无违规内容
 

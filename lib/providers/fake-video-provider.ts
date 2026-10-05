@@ -28,8 +28,10 @@ export function buildFakeVideoArgs(input: {
   durationSec: number;
   labelLines: string[];
   seedText: string;
+  aspectRatio?: "9:16" | "16:9";
 }): string[] {
   const seed = hashOf(input.seedText) % 360;
+  const size = input.aspectRatio === "16:9" ? "1920x1080" : "1080x1920";
   const drawtext = input.labelLines
     .map((line, i) =>
       line.replace(/([':\\])/g, "\\$1").replace(/%/g, "\\%"),
@@ -42,7 +44,7 @@ export function buildFakeVideoArgs(input: {
 
   return [
     "-f", "lavfi",
-    "-i", `gradients=size=1080x1920:duration=${input.durationSec}:speed=0.08:c0=0x1e2a4a:c1=0x8e44ad:c2=0x27ae60:seed=${seed}`,
+    "-i", `gradients=size=${size}:duration=${input.durationSec}:speed=0.08:c0=0x1e2a4a:c1=0x8e44ad:c2=0x27ae60:seed=${seed}`,
     "-vf",
     `format=yuv420p,${drawtext}`,
     "-r", "30",
@@ -70,6 +72,7 @@ export class FakeVideoProvider implements VideoProvider {
         durationSec: Math.min(Math.max(input.durationSec, 3), 10),
         labelLines: ["AI GENERATED (fake provider)", firstWords],
         seedText: input.prompt,
+        aspectRatio: input.aspectRatio,
       }),
     );
 

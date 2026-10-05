@@ -67,6 +67,7 @@ export const AdBriefSchema = z.object({
   audience: z.string().min(1),
   platform: z.enum(["TikTok", "Reels", "Shorts"]),
   durationSec: z.union([z.literal(15), z.literal(20)]),
+  aspectRatio: z.enum(["9:16", "16:9"]).optional(),
   additionalRequirement: z.string().optional(),
 });
 export type AdBrief = z.infer<typeof AdBriefSchema>;
@@ -173,6 +174,8 @@ export const SceneStateSchema = z.object({
   qualityWarning: z.boolean().optional(),
 
   qa: CriticResultSchema.optional(),
+  /** existing-asset scenes: candidates already rejected by the critic */
+  rejectedAssetIds: z.array(z.string()).optional(),
   repairHistory: z.array(RepairRecordSchema),
   retryCount: z.number().int().min(0),
   status: SceneStatusSchema,

@@ -54,7 +54,7 @@ export class MiniMaxVideoProvider implements VideoProvider {
     // is the reliable way to force vertical output (verified against the
     // live API). Adapter-level concern — the Agent layer just asks for 9:16.
     if (process.env.MINIMAX_VERTICAL_FIRST_FRAME !== "0") {
-      body.first_frame_image = await verticalFirstFrameDataUrl(input.prompt);
+      body.first_frame_image = await verticalFirstFrameDataUrl(input.prompt, input.aspectRatio ?? "9:16");
     }
     const response = await fetch(`${this.baseUrl}/v1/video_generation`, {
       method: "POST",
@@ -154,15 +154,16 @@ const FIRST_FRAME_PALETTE: Array<[string, string]> = [
   ["0x14532d", "0xa3e635"],
 ];
 
-export function firstFrameArgs(dest: string, seedText: string): string[] {
+export function firstFrameArgs(dest: string, seedText: string, aspectRatio: "9:16" | "16:9" = "9:16"): string[] {
   let hash = 0;
   for (let i = 0; i < seedText.length; i++) hash = (hash * 31 + seedText.charCodeAt(i)) | 0;
   const index = Math.abs(hash) % FIRST_FRAME_PALETTE.length;
   const seed = Math.abs(hash) % 360;
   const [c0, c1] = FIRST_FRAME_PALETTE[index];
+  const size = aspectRatio === "16:9" ? "1920x1080" : "1080x1920";
   return [
     "-f", "lavfi",
-    "-i", `gradients=size=1080x1920:duration=1:speed=0.05:seed=${seed}:c0=${c0}:c1=${c1}`,
+    "-i", `gradients=size=${size}:duration=1:speed=0.05:seed=${seed}:c0=${c0}:c1=${c1}`,
     "-frames:v", "1",
     "-q:v", "3",
     "-update", "1",
@@ -170,11 +171,11 @@ export function firstFrameArgs(dest: string, seedText: string): string[] {
   ];
 }
 
-async function verticalFirstFrameDataUrl(seedText: string): Promise<string> {
+async function verticalFirstFrameDataUrl(seedText: string, aspectRatio: "9:16" | "16:9"): Promise<string> {
   const fs = await import("node:fs");
   const dest = path.join(os.tmpdir(), `adpilot-firstframe-${randomUUID().slice(0, 8)}.jpg`);
   const bin = ffmpegStatic ?? "ffmpeg";
-  await execFileAsync(bin, ["-y", "-hide_banner", "-loglevel", "error", ...firstFrameArgs(dest, seedText)]);
+  await execFileAsync(bin, ["-y", "-hide_banner", "-loglevel", "error", ...firstFrameArgs(dest, seedText, aspectRatio)]);
   const b64 = fs.readFileSync(dest).toString("base64");
   fs.rmSync(dest, { force: true });
   return `data:image/jpeg;base64,${b64}`;
