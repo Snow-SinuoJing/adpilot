@@ -29,6 +29,29 @@ import { ACTION_ZH, DEMO_MODE_ZH, SOURCE_ZH } from "@/lib/i18n";
  */
 
 const runningProjects = new Set<string>();
+const stopRequests = new Set<string>();
+
+/** 用户请求停止（用户反馈 #5）：当前批次跑完后主循环在下一步优雅终止。 */
+export function requestStop(projectId: string): boolean {
+  const store = getStore();
+  const state = store.get(projectId);
+  if (!state) return false;
+  if (!runningProjects.has(projectId)) {
+    if (isTerminal(state)) return false;
+    store.update(projectId, (s) => {
+      s.status = "STOPPED";
+      s.error = undefined;
+    });
+    emit(projectId, { type: "PROJECT_STOPPED", actor: "SYSTEM", title: "任务已停止" });
+    return true;
+  }
+  stopRequests.add(projectId);
+  return true;
+}
+
+function stopRequested(projectId: string): boolean {
+  return stopRequests.has(projectId);
+}
 
 export interface OrchestratorDeps {
   capabilities: Capabilities;
@@ -60,7 +83,7 @@ function aspectOf(state: ProjectState): "9:16" | "16:9" {
 }
 
 function isTerminal(state: ProjectState): boolean {
-  return state.status === "COMPLETED" || state.status === "FAILED";
+  return state.status === "COMPLETED" || state.status === "FAILED" || state.status === "STOPPED";
 }
 
 const STATUS_BY_ACTION: Partial<Record<DirectorAction, ProjectState["status"]>> = {
@@ -138,6 +161,20 @@ export async function runProject(projectId: string, deps: OrchestratorDeps = def
     while (true) {
       const state = store.get(projectId)!;
       if (isTerminal(state)) break;
+
+      if (stopRequested(projectId)) {
+        stopRequests.delete(projectId);
+        store.update(projectId, (s) => {
+          s.status = "STOPPED";
+        });
+        emit(projectId, {
+          type: "PROJECT_STOPPED",
+          actor: "SYSTEM",
+          title: "任务已由用户停止",
+          detail: "已完成的场景与素材保留，可随时重跑或回放。",
+        });
+        break;
+      }
 
       if (!canTakeDirectorStep(state)) {
         failProject(projectId, "STATE", "已达到导演步数上限（MAX_DIRECTOR_STEPS）");
@@ -435,17 +472,18 @@ async function attachExistingAsset(projectId: string, sceneId: string): Promise<
     cut = { source: asset.path, startTime: start, endTime: end, dest: mediaFile(projectId, `${sceneId}-existing.mp4`) };
   }
 
+  // 先完成文件（裁剪/拷贝），再写状态——否则 UI 拿到 URL 时文件还不存在，
+  // 视频加载 404 → 黑屏（用户反馈 #2 的偶发根因）
   const dest = cut ? cut.dest : mediaFile(projectId, `${sceneId}-existing.mp4`);
-  if (!cut) {
+  if (cut) {
+    await runFfmpeg(buildSegmentCutArgs(cut));
+  } else {
     fs.copyFileSync(asset.path, dest);
   }
   store.update(projectId, (s) => {
     sceneOf(s, sceneId).videoUrl = urlForMedia(dest);
     transitionScene(s, sceneId, "EVALUATING");
   });
-  if (cut) {
-    await runFfmpeg(buildSegmentCutArgs(cut));
-  }
   emitScene(projectId, sceneId, "已挂载素材库片段——评审中");
 }
 

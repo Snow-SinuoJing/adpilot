@@ -10,6 +10,7 @@ export const PROJECT_STATUS_ZH: Record<ProjectStatus, string> = {
   COMPOSING: "合成中",
   COMPLETED: "已完成",
   FAILED: "失败",
+  STOPPED: "已停止",
 };
 
 export const SCENE_STATUS_ZH: Record<SceneStatus, string> = {

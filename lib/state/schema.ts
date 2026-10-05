@@ -30,6 +30,7 @@ export const ProjectStatusSchema = z.enum([
   "COMPOSING",
   "COMPLETED",
   "FAILED",
+  "STOPPED",
 ]);
 export type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
 
@@ -196,6 +197,7 @@ export const RuntimeEventTypeSchema = z.enum([
   "CRITIC_COMPLETED",
   "REPAIR_STARTED",
   "PROJECT_COMPLETED",
+  "PROJECT_STOPPED",
   "ERROR",
 ]);
 export type RuntimeEventType = z.infer<typeof RuntimeEventTypeSchema>;

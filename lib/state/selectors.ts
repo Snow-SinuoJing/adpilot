@@ -197,6 +197,7 @@ export function criticView(state: ProjectState, sceneId: string) {
       durationSec: scene.durationSec,
       visualIntent: scene.visualIntent,
       generationPrompt: scene.generationPrompt ?? "",
+      sourceStrategy: scene.sourceStrategy ?? "EXISTING_ASSET",
       repairHistory: scene.repairHistory,
     },
   };

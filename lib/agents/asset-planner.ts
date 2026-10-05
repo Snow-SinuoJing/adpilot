@@ -31,6 +31,7 @@ const SYSTEM = `你是广告工作室的素材规划师。针对单个场景，�
   * 只描述动作/情绪/状态——绝不出现文字、字幕、Logo、UI、应用界面或可读屏幕；
   * 不做跨镜头引用——每次生成相互独立；
   * 包含光影逻辑、镜头语言、真实材质，只用物理道具——禁止粒子、全息、悬浮物体；
+  * 【产品复刻禁令】视频模型无法还原具体产品的外观/包装/品牌细节——提示词绝不要求生成特定产品实体或 Logo，改用象征与意象表达卖点（光影氛围、清爽联想、抽象特效、"0 糖"这类文字化卖点留给后期），否则会陷入无限修复循环；
   * 以 "photorealistic, raw photo, cinematic lighting" 收尾。
 - 【产品主体硬规则】候选素材的画面主体（或其描述）必须与广告产品本身一致——为饮料选素材时，游戏画面再"精彩"也视为不匹配，必须排除。
 - reason：一句用户可见的简体中文说明。confidence 表示把握程度（0–1）。`;
@@ -104,6 +105,7 @@ export function buildGenerationPrompt(scene: SceneState, brief: AdBrief): string
   return [
     `${brief.aspectRatio === "16:9" ? "Horizontal 16:9" : "Vertical 9:16"} ad scene for ${brief.productName} (${brief.market} market). The advertised product MUST be the visual subject.`,
     `Subject: ${scene.visualIntent}`,
+    `Product policy: do NOT attempt to render the literal product, its packaging or any logo (video models cannot reproduce them). Express the value symbolically — light, atmosphere, motion metaphors, abstract effects.`,
     `Direction: ${styleByPurpose[scene.purpose]}. Independent self-contained shot.`,
     `Light & texture: natural practical light, realistic skin and fabric texture, physically plausible props only.`,
     `Exclusions: no on-screen text, no captions, no logos, no UI elements, no readable screens, no particles or holograms.`,

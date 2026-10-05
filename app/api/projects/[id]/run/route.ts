@@ -8,7 +8,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const state = getStore().get(id);
   if (!state) return NextResponse.json({ error: "project not found" }, { status: 404 });
-  if (state.status === "COMPLETED" || state.status === "FAILED") {
+  if (state.status === "COMPLETED" || state.status === "FAILED" || state.status === "STOPPED") {
     return NextResponse.json({ error: `project already ${state.status.toLowerCase()}` }, { status: 409 });
   }
 

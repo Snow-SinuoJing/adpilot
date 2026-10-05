@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { requestStopRefresh } from "./stop-helper";
 import Link from "next/link";
 import type { ProjectState, RuntimeEvent } from "@/lib/state/schema";
 import { PROJECT_STATUS_ZH, DEMO_MODE_ZH } from "@/lib/i18n";
@@ -17,6 +18,19 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
   const [events, setEvents] = useState<RuntimeEvent[]>([]);
   const [notFound, setNotFound] = useState(false);
   const started = useRef(false);
+
+  const canStop =
+    state !== null &&
+    state.status !== "COMPLETED" &&
+    state.status !== "FAILED" &&
+    state.status !== "STOPPED" &&
+    state.runtime.demoMode !== "replay";
+
+  const onStop = useCallback(async () => {
+    if (!confirm("确定停止当前任务？当前批次完成后终止，已完成的场景与素材会保留。")) return;
+    await fetch(`/api/projects/${projectId}/stop`, { method: "POST" });
+    requestStopRefresh();
+  }, [projectId]);
 
   const refreshState = useCallback(async () => {
     const response = await fetch(`/api/projects/${projectId}`);
@@ -86,6 +100,16 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
             <span className={`rounded-full px-2.5 py-1 font-medium ${state.runtime.demoMode === "replay" ? "bg-amber-500/15 text-amber-300" : "bg-zinc-800 text-zinc-400"}`}>
               {DEMO_MODE_ZH[state.runtime.demoMode] ?? state.runtime.demoMode}
             </span>
+          )}
+          {canStop && (
+            <button
+              type="button"
+              onClick={() => void onStop()}
+              className="rounded-lg border border-red-500/50 px-2.5 py-1 font-medium text-red-300 hover:bg-red-500/10"
+              title="停止当前任务（当前批次完成后终止，已完成内容保留）"
+            >
+              ■ 停止
+            </button>
           )}
           <Link href="/assets" className="rounded-lg border border-zinc-700 px-2.5 py-1 text-zinc-300 hover:border-zinc-500">
             素材库
@@ -157,6 +181,7 @@ function StatusPill({ status }: { status: ProjectState["status"] }) {
     COMPOSING: "bg-teal-500/15 text-teal-300",
     COMPLETED: "bg-emerald-500/15 text-emerald-300",
     FAILED: "bg-red-500/15 text-red-300",
+    STOPPED: "bg-zinc-700 text-zinc-300",
   };
   return (
     <span className={`rounded-full px-2.5 py-1 font-medium ${styles[status]}`}>
