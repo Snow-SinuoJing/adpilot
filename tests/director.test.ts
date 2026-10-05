@@ -114,7 +114,7 @@ describe("bounded action space (P1)", () => {
 
   it("caps: generation blocked at the total limit; steps bounded", () => {
     expect(MAX_TOTAL_VIDEO_GENERATIONS).toBe(4);
-    expect(MAX_DIRECTOR_STEPS).toBe(20);
+    expect(MAX_DIRECTOR_STEPS).toBe(30);
     const state = stateWith((s) => {
       s.runtime.totalVideoGenerations = MAX_TOTAL_VIDEO_GENERATIONS;
       const s2 = s.scenes[1];

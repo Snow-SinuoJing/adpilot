@@ -7,7 +7,7 @@ import {
 } from "@/lib/state/schema";
 import { assertSceneTransition, transitionScene, validateInvariants, StateTransitionError } from "@/lib/runtime/reducer";
 import { mockStrategy } from "@/lib/agents/strategy";
-import { MAX_REPAIR_PER_SCENE, MAX_SCENES } from "@/lib/runtime/limits";
+import { MAX_REPAIR_PER_SCENE, MAX_SCENES, MAX_DIRECTOR_STEPS } from "@/lib/runtime/limits";
 
 const BRIEF: AdBrief = AdBriefSchema.parse({
   productName: "Tile Blitz",
@@ -114,6 +114,7 @@ describe("invariants", () => {
   it("enforces caps", () => {
     expect(MAX_SCENES).toBe(3);
     expect(MAX_REPAIR_PER_SCENE).toBe(1);
+    expect(MAX_DIRECTOR_STEPS).toBeGreaterThanOrEqual(25); // bounded, but fits live repair + re-plan paths
     const state = baseState();
     state.runtime.totalVideoGenerations = 5;
     expect(() => validateInvariants(state)).toThrow(/generation cap/);
