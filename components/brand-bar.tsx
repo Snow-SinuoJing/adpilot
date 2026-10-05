@@ -11,11 +11,12 @@ export function BrandBar({
   /** 项目页等需要在导航右侧追加的控件（状态、停机按钮等）。 */
   right?: React.ReactNode;
   /** 当前高亮项；项目页没有对应导航项时传 null。 */
-  current?: "home" | "assets" | null;
+  current?: "home" | "assets" | "archive" | null;
 }) {
   const pathname = usePathname();
   const isHome = current === "home" || (current === undefined && pathname === "/");
   const isAssets = current === "assets" || (current === undefined && pathname.startsWith("/assets"));
+  const isArchive = current === "archive" || (current === undefined && pathname.startsWith("/archive"));
 
   const link = (href: string, label: string, active: boolean) => (
     <Link
@@ -41,9 +42,7 @@ export function BrandBar({
       <nav className="flex items-center gap-5 md:gap-6">
         {link("/", "开机", isHome)}
         {link("/assets", "道具间", isAssets)}
-        <a href="/#archive" className="hidden pb-0.5 text-xs font-bold tracking-[0.16em] transition-colors border-b-2 border-transparent hover:border-orange hover:text-orange md:inline-block">
-          往期广告片
-        </a>
+        {link("/archive", "往期广告片", isArchive)}
       </nav>
       <div className="ml-auto flex items-center gap-2.5">
         {right}

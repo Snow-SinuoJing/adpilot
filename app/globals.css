@@ -210,6 +210,62 @@ body {
   .logev::after { left: -31px !important; right: auto !important; }
 }
 
+/* ─── 场记条目：最新一条滑入并亮边 ─── */
+@keyframes logev-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
+.logev.fresh { animation: logev-in 0.4s ease both; border-color: var(--color-orange); }
+
+/* ─── 剧组名牌：当前干活的角色高亮加速 ─── */
+.crew .m { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease; }
+.crew .m.working {
+  border-color: var(--color-orange);
+  background: #fff;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(255, 77, 0, 0.18);
+}
+.crew .m.working .av svg { filter: drop-shadow(0 0 5px rgba(255, 77, 0, 0.55)); }
+.crew .m.working .ch .head,
+.crew .m.working .ch .mega,
+.crew .m.working .ch .mag,
+.crew .m.working .ch .stampP,
+.crew .m.working .ch .body { animation-duration: 0.7s; }
+.crew .m.working .ch .pupil { animation-duration: 0.7s; }
+.crew .m .onduty { display: none; }
+.crew .m.working .onduty {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  color: var(--color-orange);
+  animation: sc-blink 1.2s steps(2) infinite;
+}
+.crew .m .onduty::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--color-orange); }
+
+/* ─── 道具清点（上传解析）小剧场 ─── */
+.checkin-list .done-chip {
+  display: inline-block;
+  border: 1.5px solid var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  padding: 2px 6px;
+  animation: stamp-pop 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+@keyframes stamp-pop { from { transform: scale(1.6) rotate(-8deg); opacity: 0; } }
+.checkin-bar { position: relative; overflow: hidden; height: 3px; background: rgba(255, 77, 0, 0.15); }
+.checkin-bar::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 40%;
+  background: var(--color-orange);
+  animation: checkin-slide 1.2s ease-in-out infinite;
+}
+@keyframes checkin-slide { 0% { left: -40%; } 100% { left: 100%; } }
+
 /* ─── 自修复时刻卡（黑卡 + 印章砸落） ─── */
 .score-old { position: relative; font-family: var(--font-mono); font-size: 40px; color: #6a6156; padding: 4px 10px; }
 .score-old::after { content: ""; position: absolute; left: -4px; right: -4px; top: 54%; height: 3px; background: var(--color-orange); transform: rotate(-7deg); }
@@ -260,16 +316,18 @@ body {
 
 /* ─── 成片空态：胶片倒计时头 ─── */
 .leader { background: radial-gradient(circle at 50% 46%, #171310 0%, #0e0c0a 72%); display: flex; align-items: center; justify-content: center; }
-.leader .ring { position: relative; width: 74%; aspect-ratio: 1; }
+.leader .ring { position: relative; width: 74%; aspect-ratio: 1; border: 0; border-radius: 50%; overflow: hidden; }
 .leader .ring::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(237, 230, 216, 0.3); }
 .leader .ring::after { content: ""; position: absolute; inset: 11%; border-radius: 50%; border: 1px solid rgba(237, 230, 216, 0.16); }
 .leader .sweep { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(232, 163, 61, 0.24) 0 46deg, transparent 46deg); animation: leader-sweep 1s linear infinite; }
 @keyframes leader-sweep { to { transform: rotate(360deg); } }
-.leader .n { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: clamp(48px, 8vw, 110px); color: var(--color-cream); opacity: 0; }
-.leader .n3 { animation: leader-num 3s steps(1) infinite; }
-.leader .n2 { animation: leader-num 3s steps(1) infinite; animation-delay: 1s; }
-.leader .n1 { animation: leader-num 3s steps(1) infinite; animation-delay: 2s; }
-@keyframes leader-num { 0%, 99% { opacity: 1; } 100% { opacity: 0; } }
+.leader .n { position: absolute; inset: 0; display: flex; border: 0; outline: 0; box-shadow: none; align-items: center; justify-content: center; font-weight: 900; font-size: clamp(48px, 8vw, 110px); color: var(--color-cream); opacity: 0; }
+.leader .n3 { animation: leader-n3 3s steps(1) infinite; }
+.leader .n2 { animation: leader-n2 3s steps(1) infinite; }
+.leader .n1 { animation: leader-n1 3s steps(1) infinite; }
+@keyframes leader-n3 { 0%, 32% { opacity: 1; } 33%, 100% { opacity: 0; } }
+@keyframes leader-n2 { 0%, 32% { opacity: 0; } 33%, 65% { opacity: 1; } 66%, 100% { opacity: 0; } }
+@keyframes leader-n1 { 0%, 65% { opacity: 0; } 66%, 98% { opacity: 1; } 99%, 100% { opacity: 0; } }
 .leader .cross-h { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(237, 230, 216, 0.18); }
 .leader .cross-v { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(237, 230, 216, 0.18); }
 

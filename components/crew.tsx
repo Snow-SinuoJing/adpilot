@@ -156,20 +156,33 @@ const CREW: Array<{ actor: RuntimeActor; role: string; en: string }> = [
   { actor: "SYSTEM", role: "制片", en: "SYSTEM" },
 ];
 
-/** 场记区开头的剧组名牌条：六个角色一字排开。 */
-export function CrewRoster({ className = "" }: { className?: string }) {
+/** 场记区开头的剧组名牌条：六个角色一字排开；activeActor = 当前正在干活的成员，高亮加速。 */
+export function CrewRoster({
+  activeActor = null,
+  className = "",
+}: {
+  activeActor?: RuntimeActor | null;
+  className?: string;
+}) {
   return (
-    <div className={`flex flex-wrap items-center gap-3 ${className}`}>
+    <div className={`crew flex flex-wrap items-center gap-3 ${className}`}>
       <span className="mr-1.5 font-mono text-[10px] tracking-[0.3em] text-grey">CREW · 本场剧组</span>
       {CREW.map(({ actor, role, en }) => {
         const Component = ACTOR_CHARACTER[actor];
+        const working = actor === activeActor;
         return (
-          <span key={actor} className="inline-flex items-center gap-2 rounded-full border border-ink/30 bg-white/50 py-1.5 pl-1.5 pr-3.5">
-            <Component className="size-6 text-ink" />
+          <span
+            key={actor}
+            className={`m inline-flex items-center gap-2 rounded-full border border-ink/30 bg-white/50 py-1.5 pl-1.5 pr-3.5 ${working ? "working" : ""}`}
+          >
+            <span className="av">
+              <Component className="size-6 text-ink" />
+            </span>
             <span>
               <b className="block text-[11.5px] font-extrabold tracking-[0.08em]">{role}</b>
               <i className="block font-mono text-[8px] not-italic tracking-[0.12em] text-grey">{en}</i>
             </span>
+            <span className="onduty">干活中</span>
           </span>
         );
       })}

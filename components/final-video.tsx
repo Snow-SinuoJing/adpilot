@@ -2,6 +2,7 @@
 
 import type { ProjectState } from "@/lib/state/schema";
 import { FilmLeader } from "./film-leader";
+import { LANGUAGE_ZH } from "@/lib/i18n";
 import { IconDownload } from "./icons";
 
 /**
@@ -73,7 +74,7 @@ export function FinalVideo({ state }: { state: ProjectState }) {
             </div>
             <div>
               <dt className="mb-1">配音</dt>
-              <dd className="text-sm font-semibold text-cream">{state.brief.language === "zh" ? "中文普通话" : state.brief.language === "yue" ? "粤语" : state.brief.language === "en" ? "英语" : state.brief.language === "pt" ? "葡萄牙语" : "西班牙语"}</dd>
+              <dd className="text-sm font-semibold text-cream">{LANGUAGE_ZH[state.brief.language ?? "zh"] ?? "中文普通话"}</dd>
             </div>
           </dl>
 

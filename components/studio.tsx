@@ -115,6 +115,8 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
     scene.repairHistory.map((record) => ({ scene, record })),
   );
   const lastRepair = repairs[repairs.length - 1];
+  // 最新一条场记的演员 = 此刻正在干活的角色（名牌条据此高亮加速）
+  const activeActor = events.length ? events[events.length - 1].actor : null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -279,7 +281,7 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
             </div>
           </div>
 
-          <CrewRoster className="mt-7" />
+          <CrewRoster activeActor={activeActor} className="mt-7" />
 
           <div className="mt-2">
             <AgentActivity events={events} autoCollapse={state.status === "COMPLETED"} />

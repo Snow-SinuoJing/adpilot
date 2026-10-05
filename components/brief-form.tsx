@@ -7,6 +7,7 @@ import { DEMO_BRIEF } from "@/lib/demo/demo-brief";
 import { PROJECT_STATUS_ZH, marketLabel } from "@/lib/i18n";
 import { BrandBar } from "./brand-bar";
 import { SetScene } from "./set-scene";
+import { CharacterPropMaster } from "./crew";
 import { IconPlay } from "./icons";
 
 const EMPTY_FORM = {
@@ -353,18 +354,43 @@ export function BriefForm() {
                   <input ref={clipInput} type="file" accept="video/*" multiple hidden onChange={(e) => void uploadClips(e.target.files)} />
                   {uploadNote && <p className="text-[11px] leading-relaxed text-[#2e6b46]">{uploadNote}</p>}
                   {analysisStatus.length > 0 && (
-                    <div className="space-y-1">
-                      {analysisStatus.map((s) => (
-                        <p key={s.id} className={`text-[11px] leading-relaxed ${s.pending ? "text-orange" : "text-[#2e6b46]"}`}>
-                          {s.pending ? (
-                            <span className="animate-pulse">{s.label} · 镜头拆分/视觉描述中…</span>
-                          ) : (
-                            <span>{s.label} · 已解析{s.segs > 0 ? ` ${s.segs} 段切片` : ""}</span>
-                          )}
-                        </p>
-                      ))}
+                    <div className="checkin-list mt-3 border border-ink/20 bg-white/60 p-3">
+                      <div className="flex items-center gap-3">
+                        <CharacterPropMaster className="size-12 shrink-0 text-ink" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-extrabold tracking-[0.06em]">
+                            {analysisPending ? (
+                              <span className="text-orange">道具师正在清点新入库的道具…</span>
+                            ) : (
+                              <span className="text-[#2e6b46]">清点完毕，{analysisStatus.length} 件道具全部就绪</span>
+                            )}
+                          </p>
+                          <p className="mt-0.5 font-mono text-[10px] tracking-[0.1em] text-grey">镜头拆分 → 视觉描述 → 入库检索</p>
+                        </div>
+                      </div>
+                      <ul className="mt-3 space-y-2">
+                        {analysisStatus.map((s) => (
+                          <li key={s.id} className="flex items-center gap-2.5 text-[11px]">
+                            {s.pending ? (
+                              <span className="h-1.5 w-1.5 flex-none animate-pulse rounded-full bg-orange" />
+                            ) : (
+                              <span className="done-chip flex-none">已入库</span>
+                            )}
+                            <span className={`min-w-0 flex-1 truncate ${s.pending ? "font-bold text-orange" : "text-[#4a443b]"}`}>
+                              {s.label}
+                            </span>
+                            {s.pending ? (
+                              <span className="checkin-bar w-14 flex-none" />
+                            ) : (
+                              <span className="flex-none font-mono text-[10px] text-grey">
+                                {s.segs > 0 ? `${s.segs} 段切片` : "整段可用"}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
                       {analysisPending && (
-                        <p className="text-[11px] text-orange/90">建议等解析完成再开机，否则可能检索不到这些素材的切片</p>
+                        <p className="mt-2.5 text-[11px] text-orange/90">建议等清点完成再开机，否则可能检索不到这些道具的切片</p>
                       )}
                     </div>
                   )}
@@ -445,11 +471,14 @@ export function BriefForm() {
 
         {history.length > 0 && (
           <section id="archive" className="mt-16 scroll-mt-20">
-            <div className="mb-5 flex items-baseline justify-between border-b-[3px] border-ink pb-3">
+            <div className="mb-5 flex items-baseline justify-between gap-4 border-b-[3px] border-ink pb-3">
               <h2 className="text-xl font-black tracking-[0.04em]">
                 往期广告片
                 <small className="ml-3.5 font-mono text-[10px] font-normal tracking-[0.3em] text-grey">FILMOGRAPHY · 交付存档</small>
               </h2>
+              <a href="/archive" className="text-xs font-bold tracking-[0.1em] text-grey hover:text-orange">
+                全部陈列 →
+              </a>
             </div>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
               {history.map((item) => (
