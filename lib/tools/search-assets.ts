@@ -61,7 +61,7 @@ function scoreAsset(
   return Math.max(0, Math.min(1, lexical * 0.8 + productBonus + tagBonus - durationPenalty));
 }
 
-export function searchAssets(input: { query: string; purpose: string; topK?: number; product?: string }): AssetCandidate[] {
+export function searchAssets(input: { query: string; purpose: string; topK?: number; product?: string; priorityIds?: string[] }): AssetCandidate[] {
   const libraryFile = path.join(ASSETS_DIR, "assets.json");
   if (!fs.existsSync(libraryFile)) return [];
 
@@ -94,12 +94,16 @@ export function searchAssets(input: { query: string; purpose: string; topK?: num
   };
   const anyProductHit = searchable.some((asset) => productHit(asset));
 
+  const priority = new Set(input.priorityIds ?? []);
   const scored = searchable
     .map((asset) => ({
       asset,
-      score:
+      score: Math.min(
+        1,
         scoreAsset({ intent: input.query, purpose: input.purpose, product: input.product }, asset) *
-        (anyProductHit && !productHit(asset) ? 0.35 : 1),
+          (anyProductHit && !productHit(asset) ? 0.35 : 1) +
+          (priority.has(asset.id) ? 0.2 : 0), // 本次上传的素材优先（用户反馈 #2）
+      ),
     }))
     .filter(({ score }) => score >= 0.15); // 弱分候选是噪声，宁缺毋滥交给规划器
 

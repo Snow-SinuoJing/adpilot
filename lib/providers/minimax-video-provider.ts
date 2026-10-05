@@ -57,7 +57,12 @@ export class MiniMaxVideoProvider implements VideoProvider {
     );
 
     if (this.isV2()) {
-      const body = miniMaxV2SubmitBody(input, this.model, firstFrame);
+      const fsMod = await import("node:fs");
+      const referenceDataUrl =
+        input.referenceImagePath && fsMod.existsSync(input.referenceImagePath)
+          ? `data:image/jpeg;base64,${fsMod.readFileSync(input.referenceImagePath).toString("base64")}`
+          : undefined;
+      const body = miniMaxV2SubmitBody(input, this.model, firstFrame, referenceDataUrl);
       const response = await fetch(`${this.baseUrl}/v2/video_generation`, {
         method: "POST",
         headers: this.headers(),
@@ -136,21 +141,25 @@ export class MiniMaxVideoProvider implements VideoProvider {
   }
 }
 
-/** Pure: /v2 submit body（content 消息体，duration 限 5–10 秒，分辨率 480P/768P）。 */
+/** Pure: /v2 submit body。first_frame_image 为顶层参数（锚定画幅与开场），
+ *  content 内可携带产品参考图（以图生图锚定产品外观，实测相似度 ~80/100）。 */
 export function miniMaxV2SubmitBody(
   input: VideoSubmitInput,
   model: string,
   firstFrameDataUrl: string,
+  referenceDataUrl?: string,
 ): Record<string, unknown> {
   const duration = Math.min(Math.max(Math.round(input.durationSec), 5), 10);
+  const content: Array<Record<string, unknown>> = [{ type: "text", text: input.prompt }];
+  if (referenceDataUrl) {
+    content.push({ type: "image_url", image_url: { url: referenceDataUrl } });
+  }
   return {
     model,
     duration,
     resolution: process.env.MINIMAX_VIDEO_RESOLUTION?.trim() || "768p",
-    content: [
-      { type: "text", text: input.prompt },
-      { type: "image_url", image_url: { url: firstFrameDataUrl } },
-    ],
+    first_frame_image: firstFrameDataUrl,
+    content,
   };
 }
 

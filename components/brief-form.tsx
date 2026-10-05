@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AdBrief } from "@/lib/state/schema";
 import { DEMO_BRIEF } from "@/lib/demo/demo-brief";
@@ -35,6 +35,51 @@ export function BriefForm() {
   const [error, setError] = useState<string | null>(null);
   const [replays, setReplays] = useState<Array<{ name: string; product?: string }>>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [priorityIds, setPriorityIds] = useState<string[]>([]);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
+  const [clipInputBusy, setClipInputBusy] = useState(false);
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [refBusy, setRefBusy] = useState(false);
+  const clipInput = useRef<HTMLInputElement>(null);
+  const refInput = useRef<HTMLInputElement>(null);
+
+  const uploadClips = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setClipInputBusy(true);
+    setUploadNote("上传中，长素材会自动做镜头拆分与视觉描述…");
+    try {
+      const form = new FormData();
+      for (const file of Array.from(files)) form.append("files", file);
+      const response = await fetch("/api/assets/upload", { method: "POST", body: form });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "上传失败");
+      setPriorityIds((prev) => [...prev, ...(body.added ?? [])].slice(-50));
+      setUploadNote(`已上传 ${body.added.length} 个素材，本次广告计划将优先检索它们`);
+    } catch (e) {
+      setUploadNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setClipInputBusy(false);
+      if (clipInput.current) clipInput.current.value = "";
+    }
+  };
+
+  const uploadReference = async (file: File | null) => {
+    if (!file) return;
+    setRefBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/upload/product-image", { method: "POST", body: form });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "上传失败");
+      setReferenceImage(body.url);
+    } catch (e) {
+      setUploadNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRefBusy(false);
+      if (refInput.current) refInput.current.value = "";
+    }
+  };
 
   const refreshHistory = useCallback(() => {
     fetch("/api/projects")
@@ -82,6 +127,8 @@ export function BriefForm() {
         durationSec: form.durationSec,
         aspectRatio: form.aspectRatio,
         language: form.language,
+        ...(priorityIds.length ? { priorityAssetIds: priorityIds } : {}),
+        ...(referenceImage ? { referenceImage } : {}),
         ...(form.additionalRequirement.trim() ? { additionalRequirement: form.additionalRequirement.trim() } : {}),
       };
 
@@ -135,6 +182,55 @@ export function BriefForm() {
           失败只修复单个场景，最终输出一条竖版 MP4。
         </p>
       </header>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+          <p className="text-xs font-semibold text-zinc-300">🎬 本次相关素材（可选）</p>
+          <p className="text-[11px] leading-relaxed text-zinc-500">
+            上传本产品的视频素材：自动识别、切片、打标入素材库，并在这次计划中优先检索
+          </p>
+          <button
+            type="button"
+            onClick={() => clipInput.current?.click()}
+            disabled={clipInputBusy}
+            className="w-full rounded-lg border border-dashed border-zinc-600 py-2 text-xs text-zinc-300 hover:border-indigo-500 hover:text-indigo-300 disabled:opacity-50"
+          >
+            {clipInputBusy ? "上传处理中…" : "＋ 上传视频素材"}
+          </button>
+          <input ref={clipInput} type="file" accept="video/*" multiple hidden onChange={(e) => void uploadClips(e.target.files)} />
+          {uploadNote && <p className="text-[11px] text-emerald-300">{uploadNote}</p>}
+          {priorityIds.length > 0 && (
+            <button type="button" onClick={() => setPriorityIds([])} className="text-[11px] text-zinc-500 hover:text-zinc-300">
+              清除优先（已选 {priorityIds.length} 个）
+            </button>
+          )}
+        </div>
+        <div className="space-y-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+          <p className="text-xs font-semibold text-zinc-300">📸 产品参考图（可选）</p>
+          <p className="text-[11px] leading-relaxed text-zinc-500">
+            上传产品图后，AI 生成会参考真实产品外观（实测相似度约 80 分）
+          </p>
+          {referenceImage ? (
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={referenceImage} alt="产品参考图" className="size-20 rounded-lg border border-zinc-700 object-cover" />
+              <button type="button" onClick={() => setReferenceImage(null)} className="text-[11px] text-red-300 hover:underline">
+                移除
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => refInput.current?.click()}
+              disabled={refBusy}
+              className="w-full rounded-lg border border-dashed border-zinc-600 py-2 text-xs text-zinc-300 hover:border-indigo-500 hover:text-indigo-300 disabled:opacity-50"
+            >
+              {refBusy ? "上传中…" : "＋ 上传产品图（jpg / png）"}
+            </button>
+          )}
+          <input ref={refInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => void uploadReference(e.target.files?.[0] ?? null)} />
+        </div>
+      </div>
 
       <div className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
         <div className="flex items-center justify-between">

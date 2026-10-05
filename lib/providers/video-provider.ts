@@ -15,6 +15,8 @@ export interface VideoSubmitInput {
   /** diversity nonce (sceneId + attempt) — keeps first-frame seeds and
    *  therefore outputs distinct when two scenes share similar prompts */
   nonce?: string;
+  /** product reference image (absolute path) — anchors product appearance */
+  referenceImagePath?: string;
 }
 
 export type VideoJobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";

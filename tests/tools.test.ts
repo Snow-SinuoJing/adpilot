@@ -91,6 +91,18 @@ describe("search_assets ranking (doc §15 demo design)", () => {
     expect(results[0]?.score ?? 0).toBeLessThan(0.35);
   });
 
+  it("boosts assets uploaded with this brief (priorityIds)", () => {
+    const base = searchAssets({ query: "player celebrates winning level taps download", purpose: "CTA", topK: 1 });
+    const boosted = searchAssets({
+      query: "player celebrates winning level taps download",
+      purpose: "CTA",
+      topK: 1,
+      priorityIds: [base[0].id],
+    });
+    expect(boosted[0].id).toBe(base[0].id);
+    expect(boosted[0].score).toBeGreaterThan(base[0].score);
+  });
+
   it("caps results at topK", () => {
     const results = searchAssets({ query: "face phone game reaction", purpose: "HOOK", topK: 2 });
     expect(results.length).toBeLessThanOrEqual(2);
@@ -146,9 +158,23 @@ describe("MiniMax provider adapters", () => {
     );
     expect(body.duration).toBe(5);
     expect(body.resolution).toBe("768p");
+    expect(body.first_frame_image).toBe("data:image/jpeg;base64,xx");
     const content = body.content as Array<{ type: string }>;
+    expect(content).toHaveLength(1); // 无参考图时 content 只有文本
     expect(content[0].type).toBe("text");
+  });
+
+  it("v2 submit body carries the product reference image in content", () => {
+    const body = miniMaxV2SubmitBody(
+      { prompt: "p", durationSec: 6, aspectRatio: "9:16" },
+      "MiniMax-H3-Max",
+      "data:image/jpeg;base64,frame",
+      "data:image/jpeg;base64,ref",
+    );
+    const content = body.content as Array<{ type: string; image_url?: { url: string } }>;
     expect(content[1].type).toBe("image_url");
+    expect(content[1].image_url?.url).toBe("data:image/jpeg;base64,ref");
+    expect(body.first_frame_image).toBe("data:image/jpeg;base64,frame");
   });
 
   it("submit body carries model + prompt optimizer", () => {

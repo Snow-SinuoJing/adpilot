@@ -17,7 +17,7 @@ import { composeFinalVideo } from "@/lib/tools/compose-video";
 import { refineSegmentWindow } from "@/lib/tools/segment-refine";
 import { getVideoProvider } from "@/lib/providers/video-provider";
 import { getTtsProvider } from "@/lib/providers/tts-provider";
-import { mediaFile, urlForMedia } from "@/lib/media";
+import { mediaFile, urlForMedia, localPathForMedia } from "@/lib/media";
 import { llmConfig } from "@/lib/agents/llm";
 import { ACTION_ZH, DEMO_MODE_ZH, SOURCE_ZH } from "@/lib/i18n";
 
@@ -360,7 +360,13 @@ async function runRetrieveAsset(projectId: string, sceneId: string): Promise<voi
   const scene = sceneOf(state, sceneId);
   // 产品锚定（用户反馈 #4）：产品词并入查询，产品主体不符的素材天然得分低
   const query = `${scene.visualIntent}。产品：${state.brief.productName}——${state.brief.productDescription}`;
-  const candidates = searchAssets({ query, purpose: scene.purpose, topK: 3, product: state.brief.productName });
+  const candidates = searchAssets({
+    query,
+    purpose: scene.purpose,
+    topK: 3,
+    product: state.brief.productName,
+    ...(state.brief.priorityAssetIds?.length ? { priorityIds: state.brief.priorityAssetIds } : {}),
+  });
 
   store.update(projectId, (s) => {
     sceneOf(s, sceneId).assetCandidates = candidates;
@@ -508,6 +514,7 @@ async function runGenerateVideo(projectId: string, sceneId: string): Promise<voi
     durationSec: scene.durationSec,
     generationIndex: genIndex,
     aspectRatio: aspectOf(state),
+    ...(state.brief.referenceImage ? { referenceImagePath: localPathForMedia(state.brief.referenceImage) } : {}),
     onProgress: (message, extra) =>
       emit(projectId, { type: "TOOL_PROGRESS", actor: "TOOL", sceneId, title: message, data: extra }),
   });

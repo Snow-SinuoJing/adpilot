@@ -70,6 +70,10 @@ export const AdBriefSchema = z.object({
   durationSec: z.union([z.literal(15), z.literal(20)]),
   aspectRatio: z.enum(["9:16", "16:9"]).optional(),
   language: z.enum(["zh", "yue", "en", "pt", "es"]).optional(),
+  /** 本次计划中优先检索的素材（首页随简报一起上传的素材 id） */
+  priorityAssetIds: z.array(z.string()).max(50).optional(),
+  /** 产品参考图 URL —— 生成类场景以此锚定产品外观 */
+  referenceImage: z.string().optional(),
   additionalRequirement: z.string().optional(),
 });
 export type AdBrief = z.infer<typeof AdBriefSchema>;

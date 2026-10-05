@@ -105,7 +105,9 @@ export function buildGenerationPrompt(scene: SceneState, brief: AdBrief): string
   return [
     `${brief.aspectRatio === "16:9" ? "Horizontal 16:9" : "Vertical 9:16"} ad scene for ${brief.productName} (${brief.market} market). The advertised product MUST be the visual subject.`,
     `Subject: ${scene.visualIntent}`,
-    `Product policy: do NOT attempt to render the literal product, its packaging or any logo (video models cannot reproduce them). Express the value symbolically — light, atmosphere, motion metaphors, abstract effects.`,
+    brief.referenceImage
+      ? `Product policy: when the product appears, it MUST closely match the product shown in the provided reference image (shape, color, packaging). You may still prefer symbolic cutaways between product moments.`
+      : `Product policy: do NOT attempt to render the literal product, its packaging or any logo (video models cannot reproduce them). Express the value symbolically — light, atmosphere, motion metaphors, abstract effects.`,
     `Direction: ${styleByPurpose[scene.purpose]}. Independent self-contained shot.`,
     `Light & texture: natural practical light, realistic skin and fabric texture, physically plausible props only.`,
     `Exclusions: no on-screen text, no captions, no logos, no UI elements, no readable screens, no particles or holograms.`,

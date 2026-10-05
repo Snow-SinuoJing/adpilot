@@ -121,6 +121,10 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
   // remove previous segments of this parent (re-analysis)
   const kept = library.filter((a) => !("parentFile" in a && a.parentFile === parent.file));
   const parentIndex = kept.findIndex((a) => a.id === assetId);
+  if (parentIndex === -1) {
+    // 素材在分析期间被用户删除——丢弃分析结果，绝不让旧数据复活已删条目
+    return [];
+  }
   kept[parentIndex] = { ...parent, hasSegments: true, analysis: "done" };
 
   const videoPath = path.join(process.env.ADPILOT_DATA_DIR ?? path.join(process.cwd(), "data"), "assets", parent.file);
@@ -171,7 +175,13 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
   }
   fs.rmSync(tmpDir, { recursive: true, force: true });
 
-  writeLibrary([...kept, ...children]);
+  // 写入前重读最新库：若父素材已被删除则放弃（删除竞态防护，用户反馈 #1）
+  const latest = readLibrary();
+  if (!latest.some((a) => a.id === assetId)) return [];
+  const merged = latest
+    .filter((a) => !("parentFile" in a && a.parentFile === parent.file) && a.id !== assetId)
+    .concat([{ ...parent, hasSegments: true, analysis: "done" }], children);
+  writeLibrary(merged);
   return children;
 }
 
