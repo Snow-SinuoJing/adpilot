@@ -166,7 +166,11 @@ function moodOf(state: ProjectState): BgmMood {
   return "neutral";
 }
 
-export async function composeFinalVideo(projectId: string, state: ProjectState): Promise<string> {
+export async function composeFinalVideo(
+  projectId: string,
+  state: ProjectState,
+  onStage?: (message: string) => void,
+): Promise<string> {
   const ordered = [...state.scenes].sort((a, b) => a.order - b.order);
   if (ordered.some((s) => !s.videoUrl)) {
     throw new Error("cannot compose: a scene has no video");
@@ -217,7 +221,9 @@ export async function composeFinalVideo(projectId: string, state: ProjectState):
     const totalSec = durations.reduce((a, b) => a + b, 0);
     const bgmPath = mediaFile(projectId, "bgm.mp3");
     try {
+      onStage?.("正在生成背景音乐（真实音乐生成约 1-3 分钟）…");
       await bgm.synth({ mood: moodOf(state), durationSec: totalSec + 1, outPath: bgmPath });
+      onStage?.("背景音乐就绪，混音中…");
       await runFfmpeg(buildBgmDubArgs({ videoNoBgm, bgmPath, outPath: final, totalSec: totalSec + 1 }));
       finalFile = final;
     } catch (error) {

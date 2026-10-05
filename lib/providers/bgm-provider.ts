@@ -32,7 +32,8 @@ export function getBgmProvider(): BgmProvider | null {
 }
 
 interface MusicTaskResponse {
-  data?: { audio?: string; task_id?: string; status?: string; audio_url?: string; download_url?: string };
+  /** 实测：TokenHub 同步返回 data.audio = 直接下载 URL（也可能是 hex 音频） */
+  data?: { audio?: string; task_id?: string; status?: string | number; audio_url?: string; download_url?: string };
   task_id?: string;
   base_resp?: { status_code?: number; status_msg?: string };
   error?: { message?: string };
@@ -70,9 +71,12 @@ export class MiniMaxMusicBgmProvider implements BgmProvider {
     let audio: Buffer | undefined;
     let remoteUrl: string | undefined;
 
-    // 形态一：同步返回 hex 编码音频
-    if (parsed.data?.audio) {
-      audio = Buffer.from(parsed.data.audio, "hex");
+    // 形态一：同步返回——data.audio 可能是下载 URL，也可能是 hex 编码音频
+    const inlineAudio = parsed.data?.audio;
+    if (inlineAudio && /^https?:\/\//i.test(inlineAudio)) {
+      remoteUrl = inlineAudio;
+    } else if (inlineAudio && /^[0-9a-f]+$/i.test(inlineAudio) && inlineAudio.length > 1000) {
+      audio = Buffer.from(inlineAudio, "hex");
     } else if (parsed.data?.audio_url || parsed.data?.download_url) {
       remoteUrl = parsed.data.audio_url ?? parsed.data.download_url;
     } else if (parsed.data?.task_id || parsed.task_id) {

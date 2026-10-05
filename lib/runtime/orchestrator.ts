@@ -768,7 +768,9 @@ async function runComposeVideo(projectId: string): Promise<void> {
   emit(projectId, { type: "TOOL_STARTED", actor: "TOOL", title: "合成视频：标准化 → 拼接 → 混音" });
 
   const state = store.get(projectId)!;
-  const finalUrl = await composeFinalVideo(projectId, state);
+  const finalUrl = await composeFinalVideo(projectId, state, (message) =>
+    emit(projectId, { type: "TOOL_PROGRESS", actor: "TOOL", title: message }),
+  );
 
   store.update(projectId, (s) => {
     s.finalVideoUrl = finalUrl;
