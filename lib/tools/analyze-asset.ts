@@ -80,6 +80,8 @@ const CaptionSchema = z.object({
   tags: z.array(z.string()).min(1).max(8),
 });
 
+const FALLBACK_VISION_MODEL = "glm-4v-flash"; // 免费档：主模型余额不足时兜底，解析永不一笔带过
+
 async function captionSegment(
   framePath: string,
   parentDescription: string,
@@ -92,7 +94,7 @@ async function captionSegment(
     };
   }
   const b64 = fs.readFileSync(framePath).toString("base64");
-  const result = await runVision({
+  const opts = {
     name: "素材切片描述",
     system:
       "你是视频素材管理助手。根据给定的视频关键帧，用一句简体中文描述画面内容（主体/动作/情绪/物体），并给出 3-6 个用于检索的中文标签。" +
@@ -100,9 +102,17 @@ async function captionSegment(
     user: JSON.stringify({ 素材整体: parentDescription, 片段时间范围: timeRange }),
     images: [{ dataUrl: `data:image/jpeg;base64,${b64}` }],
     schema: CaptionSchema,
-    model: process.env.ANALYSIS_VISION_MODEL?.trim() || "glm-4.5v",
-  });
-  return { description: result.description, tags: result.tags };
+  };
+  const primary = process.env.ANALYSIS_VISION_MODEL?.trim() || "glm-4.5v";
+  try {
+    const result = await runVision({ ...opts, model: primary });
+    return { description: result.description, tags: result.tags };
+  } catch (error) {
+    // 主模型不可用（余额/限流）时降级到免费视觉模型——解析结果绝不静默缩水
+    console.warn(`[analyze] ${primary} 不可用，降级 ${FALLBACK_VISION_MODEL}:`, error);
+    const result = await runVision({ ...opts, model: FALLBACK_VISION_MODEL });
+    return { description: result.description, tags: result.tags };
+  }
 }
 
 export interface SegmentEntry extends AssetEntry {
@@ -139,15 +149,26 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "adpilot-analyze-"));
-  const children: SegmentEntry[] = [];
+
+  // 先抽全部关键帧（本地 ffmpeg，快）
+  const framePaths: string[] = [];
   for (const [i, segment] of segments.entries()) {
     const mid = (segment.start + segment.end) / 2;
     const framePath = path.join(tmpDir, `frame-${i}.jpg`);
+    await runFfmpeg(["-ss", String(mid), "-i", videoPath, "-frames:v", "1", "-q:v", "4", framePath]);
+    framePaths.push(framePath);
+  }
+
+  // 视觉描述并发执行（原为串行逐段等待，一条素材动辄几分钟——并发 4 缩短到 1/3 左右）
+  const CONCURRENCY = 4;
+  const children: SegmentEntry[] = new Array(segments.length);
+  let cursor = 0;
+  const captionOne = async (i: number) => {
+    const segment = segments[i];
+    const timeRange = formatRange(segment.start, segment.end);
     try {
-      await runFfmpeg(["-ss", String(mid), "-i", videoPath, "-frames:v", "1", "-q:v", "4", framePath]);
-      const timeRange = formatRange(segment.start, segment.end);
-      const caption = await captionSegment(framePath, parent.description, timeRange);
-      children.push({
+      const caption = await captionSegment(framePaths[i], parent.description, timeRange);
+      children[i] = {
         id: `${parent.id}_seg${i + 1}`,
         file: parent.file,
         description: `${caption.description}（${timeRange}）`,
@@ -157,22 +178,30 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
         parentFile: parent.file,
         startTime: segment.start,
         endTime: segment.end,
-      });
+      };
     } catch {
       // caption failure must not block the whole analysis
-      children.push({
+      children[i] = {
         id: `${parent.id}_seg${i + 1}`,
         file: parent.file,
-        description: `自动切片 ${formatRange(segment.start, segment.end)}（源自：${parent.description.slice(0, 40)}）`,
+        description: `自动切片 ${timeRange}（源自：${parent.description.slice(0, 40)}）`,
         tags: [...parent.tags.slice(0, 4), "自动切片"],
         durationSec: Math.round((segment.end - segment.start) * 10) / 10,
         origin: "segment",
         parentFile: parent.file,
         startTime: segment.start,
         endTime: segment.end,
-      });
+      };
     }
-  }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, segments.length) }, async () => {
+      while (cursor < segments.length) {
+        const i = cursor++;
+        await captionOne(i);
+      }
+    }),
+  );
   fs.rmSync(tmpDir, { recursive: true, force: true });
 
   // 写入前重读最新库：若父素材已被删除则放弃（删除竞态防护，用户反馈 #1）
