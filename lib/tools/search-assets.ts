@@ -26,7 +26,10 @@ function tokenize(text: string): Set<string> {
   return tokens;
 }
 
-function scoreAsset(query: { intent: string; purpose: string }, asset: AssetEntry): number {
+function scoreAsset(
+  query: { intent: string; purpose: string; product?: string },
+  asset: AssetEntry,
+): number {
   const queryTokens = tokenize(`${query.intent} ${query.purpose}`);
   const assetTokens = tokenize(`${asset.description} ${asset.tags.join(" ")}`);
   if (queryTokens.size === 0) return 0;
@@ -37,6 +40,17 @@ function scoreAsset(query: { intent: string; purpose: string }, asset: AssetEntr
   }
   const lexical = overlap / queryTokens.size;
 
+  // 产品主体优先（用户反馈 #4）：素材描述命中产品名过半 → 强加成，
+  // 让"元气森林切片"压过任何标签凑巧匹配的无关素材
+  let productBonus = 0;
+  if (query.product) {
+    const productTokens = [...tokenize(query.product)];
+    if (productTokens.length > 0) {
+      const hits = productTokens.filter((t) => assetTokens.has(t)).length;
+      if (hits / productTokens.length >= 0.5) productBonus = 0.35;
+    }
+  }
+
   const purposeTag = `purpose:${query.purpose.toLowerCase()}`;
   const tagBonus = asset.tags.includes(purposeTag) ? 0.25 : 0;
 
@@ -44,10 +58,10 @@ function scoreAsset(query: { intent: string; purpose: string }, asset: AssetEntr
   const distance = Math.abs(asset.durationSec - 5);
   const durationPenalty = Math.min(distance / 60, 0.08);
 
-  return Math.max(0, Math.min(1, lexical * 0.8 + tagBonus - durationPenalty));
+  return Math.max(0, Math.min(1, lexical * 0.8 + productBonus + tagBonus - durationPenalty));
 }
 
-export function searchAssets(input: { query: string; purpose: string; topK?: number }): AssetCandidate[] {
+export function searchAssets(input: { query: string; purpose: string; topK?: number; product?: string }): AssetCandidate[] {
   const libraryFile = path.join(ASSETS_DIR, "assets.json");
   if (!fs.existsSync(libraryFile)) return [];
 
@@ -56,7 +70,10 @@ export function searchAssets(input: { query: string; purpose: string; topK?: num
   const searchable = entries.filter((e) => !e.hasSegments);
 
   const scored = searchable
-    .map((asset) => ({ asset, score: scoreAsset({ intent: input.query, purpose: input.purpose }, asset) }))
+    .map((asset) => ({
+      asset,
+      score: scoreAsset({ intent: input.query, purpose: input.purpose, product: input.product }, asset),
+    }))
     .filter(({ score }) => score > 0.01);
 
   return scored

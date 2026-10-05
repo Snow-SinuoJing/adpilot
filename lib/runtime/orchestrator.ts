@@ -360,7 +360,7 @@ async function runRetrieveAsset(projectId: string, sceneId: string): Promise<voi
   const scene = sceneOf(state, sceneId);
   // 产品锚定（用户反馈 #4）：产品词并入查询，产品主体不符的素材天然得分低
   const query = `${scene.visualIntent}。产品：${state.brief.productName}——${state.brief.productDescription}`;
-  const candidates = searchAssets({ query, purpose: scene.purpose, topK: 3 });
+  const candidates = searchAssets({ query, purpose: scene.purpose, topK: 3, product: state.brief.productName });
 
   store.update(projectId, (s) => {
     sceneOf(s, sceneId).assetCandidates = candidates;
