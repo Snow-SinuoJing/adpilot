@@ -7,7 +7,7 @@ import os from "node:os";
 import { FFMPEG_BIN, runFfmpeg, probeDurationSec } from "@/lib/ffmpeg";
 import type { AssetEntry } from "@/lib/assets-library";
 import { readLibrary, writeLibrary } from "@/lib/assets-library";
-import { isMockMode, runVision } from "@/lib/agents/llm";
+import { isMockMode, runStructured, runVision } from "@/lib/agents/llm";
 import { z } from "zod";
 
 const execFileAsync = promisify(execFile);
@@ -105,6 +105,10 @@ async function captionSegment(
   };
   const primary = process.env.ANALYSIS_VISION_MODEL?.trim() || "glm-4.5v";
   const videoOn = clipPath !== null && process.env.ANALYSIS_VIDEO_INPUT !== "0";
+  // 视觉模型降级链：全部落在已购资源包/免费档内
+  const MODEL_CHAIN = Array.from(
+    new Set([primary, "glm-4.6v-flashx", FALLBACK_VISION_MODEL]),
+  );
 
   const call = async (model: string, payload: object) => {
     const result = await runVision({ ...opts, ...payload, model });
@@ -113,25 +117,26 @@ async function captionSegment(
 
   // 1) 整段视频直读：模型看到动作与运动过程，描述对"按动作检索"最有价值
   if (videoOn) {
+    const b64 = fs.readFileSync(clipPath).toString("base64");
+    for (const model of MODEL_CHAIN) {
+      try {
+        return await call(model, { videos: [{ dataUrl: `data:video/mp4;base64,${b64}` }] });
+      } catch (error) {
+        console.warn(`[analyze] 视频直读失败（${model}），降级:`, error);
+      }
+    }
+    console.warn("[analyze] 视频直读全链失败，退回关键帧模式");
+  }
+  // 2) 关键帧单图（同一条降级链）
+  const b64 = fs.readFileSync(framePath).toString("base64");
+  for (const model of MODEL_CHAIN) {
     try {
-      const b64 = fs.readFileSync(clipPath).toString("base64");
-      return await call(primary, {
-        videos: [{ dataUrl: `data:video/mp4;base64,${b64}` }],
-      });
+      return await call(model, { images: [{ dataUrl: `data:image/jpeg;base64,${b64}` }] });
     } catch (error) {
-      console.warn(`[analyze] 视频直读失败（${primary}），退回关键帧:`, error);
+      console.warn(`[analyze] 关键帧描述失败（${model}），降级:`, error);
     }
   }
-  // 2) 关键帧单图（免费模型兜底也走这里）
-  try {
-    const b64 = fs.readFileSync(framePath).toString("base64");
-    return await call(primary, { images: [{ dataUrl: `data:image/jpeg;base64,${b64}` }] });
-  } catch (error) {
-    // 3) 主模型不可用（余额/限流）时降级到免费视觉模型——解析结果绝不静默缩水
-    console.warn(`[analyze] ${primary} 不可用，降级 ${FALLBACK_VISION_MODEL}:`, error);
-    const b64 = fs.readFileSync(framePath).toString("base64");
-    return await call(FALLBACK_VISION_MODEL, { images: [{ dataUrl: `data:image/jpeg;base64,${b64}` }] });
-  }
+  throw new Error(`视觉描述全链失败`);
 }
 
 export interface SegmentEntry extends AssetEntry {
@@ -193,7 +198,7 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
   }
 
   // 视觉描述并发执行（原为串行逐段等待，一条素材动辄几分钟——并发 4 缩短到 1/3 左右）
-  const CONCURRENCY = clipPaths.some(Boolean) ? 2 : 4;
+  const CONCURRENCY = clipPaths.some(Boolean) ? 3 : 4;
   const children: SegmentEntry[] = new Array(segments.length);
   let cursor = 0;
   const captionOne = async (i: number) => {
@@ -204,7 +209,7 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
       children[i] = {
         id: `${parent.id}_seg${i + 1}`,
         file: parent.file,
-        description: `${caption.description}（${timeRange}）`,
+        description: withTimeRange(caption.description, `（${timeRange}）`),
         tags: caption.tags,
         durationSec: Math.round((segment.end - segment.start) * 10) / 10,
         origin: "segment",
@@ -237,6 +242,9 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
   );
   fs.rmSync(tmpDir, { recursive: true, force: true });
 
+  // 场记归一化：识别商品本体、全部归成简体中文、统一标签（修"雪茄造型甜品被当成烟草"这类误判）
+  await normalizeCaptions(parent, children);
+
   // 写入前重读最新库：若父素材已被删除则放弃（删除竞态防护，用户反馈 #1）
   const latest = readLibrary();
   if (!latest.some((a) => a.id === assetId)) return [];
@@ -245,6 +253,64 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
     .concat([{ ...parent, hasSegments: true, analysis: "done" }], children);
   writeLibrary(merged);
   return children;
+}
+
+/** 剥离描述尾部所有时间范围括号，统一只保留一份（防模型自带 + 代码追加导致双份）。 */
+function withTimeRange(desc: string, range: string): string {
+  const stripped = desc.replace(/(?:（[^）]*\d{1,2}:\d{2}[^）]*）\s*)+$/g, "");
+  return stripped + range;
+}
+
+const NormalizeSchema = z.object({
+  productName: z.string().min(1),
+  segments: z.array(
+    z.object({
+      index: z.number().int().min(0),
+      description: z.string().min(1),
+      tags: z.array(z.string()).min(1).max(8),
+    }),
+  ),
+});
+
+/**
+ * 场记归一化：切片描述来自视觉模型的直读，可能夹英文、可能把"雪茄造型的巧克力
+ * 甜品"误判成真雪茄。用一次廉价的文本调用统一：识别商品本体 → 全中文 → 标签对齐。
+ */
+async function normalizeCaptions(parent: AssetEntry, children: SegmentEntry[]): Promise<void> {
+  if (isMockMode() || children.length === 0) return;
+  try {
+    const result = await runStructured({
+      name: "场记归一化",
+      system:
+        "你是广告片场的道具档案员。下面是一支素材视频各切片的原始场记（可能夹英文、可能认错物品）。任务：" +
+        "1) 判断画面中反复出现的商品/食品本体是什么——特别注意：外形像雪茄/烟卷但质地是巧克力的，是雪茄造型的巧克力甜品（常见名：生巧慕斯条、巧克力慕斯条），绝不能写成烟草制品；" +
+        "2) 把每条场记重写成一句简体中文描述，以识别出的商品为准；" +
+        "3) 给每条配 3-6 个简体中文检索标签（含商品名）；" +
+        "4) productName 填识别出的商品名（实在没有就写'无'）。description 一律简体中文。",
+      user: JSON.stringify({
+        素材整体: parent.description,
+        原始场记: children.map((c, index) => ({ index, description: c.description, tags: c.tags })),
+      }),
+      schema: NormalizeSchema,
+    });
+
+    for (const seg of result.segments) {
+      const target = children[seg.index];
+      if (!target) continue;
+      const range = target.description.match(/（[^）]*\d{1,2}:\d{2}[^）]*）$/); // 原始时间范围后缀
+      target.description = range ? withTimeRange(seg.description, range[0]) : seg.description;
+      target.tags = Array.from(new Set([...seg.tags, ...parent.tags.slice(0, 2)])).slice(0, 8);
+    }
+
+    // 识别出商品名时回写父素材描述（替换纯文件名描述），检索的父词元继承随之受益
+    if (result.productName && result.productName !== "无" && /\.mp4|\.mov|\.webm|^\d+/.test(parent.description)) {
+      const parentHint = parent.description.match(/（([^）]*)）$/)?.[1] ?? "用户上传";
+      parent.description = `${result.productName}（${parentHint}）`;
+    }
+  } catch (error) {
+    // 归一化失败不影响原始场记入库
+    console.warn("[analyze] 场记归一化失败，保留原始描述:", error);
+  }
 }
 
 function formatRange(start: number, end: number): string {
