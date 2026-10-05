@@ -172,14 +172,16 @@ export async function runVision<T>(opts: {
   name: string;
   system: string;
   user: string;
-  images: Array<{ dataUrl: string }>;
+  images?: Array<{ dataUrl: string }>;
+  videos?: Array<{ dataUrl: string }>;
   schema: z.ZodType<T>;
   model?: string;
 }): Promise<T> {
   const config = llmConfig();
   const content: Array<Record<string, unknown>> = [
     { type: "text", text: `${opts.user}\n\n${schemaInstruction(opts.schema)}` },
-    ...opts.images.map((image) => ({ type: "image_url", image_url: { url: image.dataUrl } })),
+    ...(opts.videos ?? []).map((video) => ({ type: "video_url", video_url: { url: video.dataUrl } })),
+    ...(opts.images ?? []).map((image) => ({ type: "image_url", image_url: { url: image.dataUrl } })),
   ];
 
   const request = (jsonMode: boolean) =>

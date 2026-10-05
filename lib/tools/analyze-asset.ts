@@ -84,6 +84,7 @@ const FALLBACK_VISION_MODEL = "glm-4v-flash"; // 免费档：主模型余额不�
 
 async function captionSegment(
   framePath: string,
+  clipPath: string | null,
   parentDescription: string,
   timeRange: string,
 ): Promise<{ description: string; tags: string[] }> {
@@ -93,25 +94,43 @@ async function captionSegment(
       tags: ["自动切片", "片段"],
     };
   }
-  const b64 = fs.readFileSync(framePath).toString("base64");
   const opts = {
     name: "素材切片描述",
     system:
-      "你是视频素材管理助手。根据给定的视频关键帧，用一句简体中文描述画面内容（主体/动作/情绪/物体），并给出 3-6 个用于检索的中文标签。" +
-      "务必准确识别画面中的食品/商品/品牌（是什么就写什么，如'生巧慕斯条''气泡水瓶'），这对检索至关重要，不要猜成无关物品。",
+      "你是视频素材管理助手。根据给定的视频片段（或关键帧），用一句简体中文描述画面内容（主体/动作/情绪/物体），并给出 3-6 个用于检索的中文标签。" +
+      "务必准确识别画面中的食品/商品/品牌（是什么就写什么，如'生巧慕斯条''气泡水瓶'），这对检索至关重要，不要猜成无关物品。" +
+      "重点描述动作与运动过程，检索时按动作匹配。一律用简体中文回答。",
     user: JSON.stringify({ 素材整体: parentDescription, 片段时间范围: timeRange }),
-    images: [{ dataUrl: `data:image/jpeg;base64,${b64}` }],
     schema: CaptionSchema,
   };
   const primary = process.env.ANALYSIS_VISION_MODEL?.trim() || "glm-4.5v";
+  const videoOn = clipPath !== null && process.env.ANALYSIS_VIDEO_INPUT !== "0";
+
+  const call = async (model: string, payload: object) => {
+    const result = await runVision({ ...opts, ...payload, model });
+    return { description: result.description, tags: result.tags };
+  };
+
+  // 1) 整段视频直读：模型看到动作与运动过程，描述对"按动作检索"最有价值
+  if (videoOn) {
+    try {
+      const b64 = fs.readFileSync(clipPath).toString("base64");
+      return await call(primary, {
+        videos: [{ dataUrl: `data:video/mp4;base64,${b64}` }],
+      });
+    } catch (error) {
+      console.warn(`[analyze] 视频直读失败（${primary}），退回关键帧:`, error);
+    }
+  }
+  // 2) 关键帧单图（免费模型兜底也走这里）
   try {
-    const result = await runVision({ ...opts, model: primary });
-    return { description: result.description, tags: result.tags };
+    const b64 = fs.readFileSync(framePath).toString("base64");
+    return await call(primary, { images: [{ dataUrl: `data:image/jpeg;base64,${b64}` }] });
   } catch (error) {
-    // 主模型不可用（余额/限流）时降级到免费视觉模型——解析结果绝不静默缩水
+    // 3) 主模型不可用（余额/限流）时降级到免费视觉模型——解析结果绝不静默缩水
     console.warn(`[analyze] ${primary} 不可用，降级 ${FALLBACK_VISION_MODEL}:`, error);
-    const result = await runVision({ ...opts, model: FALLBACK_VISION_MODEL });
-    return { description: result.description, tags: result.tags };
+    const b64 = fs.readFileSync(framePath).toString("base64");
+    return await call(FALLBACK_VISION_MODEL, { images: [{ dataUrl: `data:image/jpeg;base64,${b64}` }] });
   }
 }
 
@@ -150,24 +169,38 @@ export async function analyzeAsset(assetId: string): Promise<SegmentEntry[]> {
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "adpilot-analyze-"));
 
-  // 先抽全部关键帧（本地 ffmpeg，快）
+  // 先抽全部关键帧 + 各段小视频（本地 ffmpeg，快；360p 控制 token）
   const framePaths: string[] = [];
+  const clipPaths: Array<string | null> = [];
   for (const [i, segment] of segments.entries()) {
     const mid = (segment.start + segment.end) / 2;
     const framePath = path.join(tmpDir, `frame-${i}.jpg`);
     await runFfmpeg(["-ss", String(mid), "-i", videoPath, "-frames:v", "1", "-q:v", "4", framePath]);
     framePaths.push(framePath);
+    const clipPath = path.join(tmpDir, `clip-${i}.mp4`);
+    try {
+      await runFfmpeg([
+        "-ss", String(segment.start), "-i", videoPath,
+        "-t", (segment.end - segment.start).toFixed(2),
+        "-vf", "scale=360:-2", "-an",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "30",
+        clipPath,
+      ]);
+      clipPaths.push(clipPath);
+    } catch {
+      clipPaths.push(null); // 片段抽取失败时退回关键帧模式
+    }
   }
 
   // 视觉描述并发执行（原为串行逐段等待，一条素材动辄几分钟——并发 4 缩短到 1/3 左右）
-  const CONCURRENCY = 4;
+  const CONCURRENCY = clipPaths.some(Boolean) ? 2 : 4;
   const children: SegmentEntry[] = new Array(segments.length);
   let cursor = 0;
   const captionOne = async (i: number) => {
     const segment = segments[i];
     const timeRange = formatRange(segment.start, segment.end);
     try {
-      const caption = await captionSegment(framePaths[i], parent.description, timeRange);
+      const caption = await captionSegment(framePaths[i], clipPaths[i], parent.description, timeRange);
       children[i] = {
         id: `${parent.id}_seg${i + 1}`,
         file: parent.file,
