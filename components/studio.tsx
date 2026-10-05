@@ -1,19 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { requestStopRefresh } from "./stop-helper";
 import Link from "next/link";
 import type { ProjectState, RuntimeEvent } from "@/lib/state/schema";
-import { PROJECT_STATUS_ZH, DEMO_MODE_ZH } from "@/lib/i18n";
+import { PROJECT_STATUS_ZH, ERROR_CATEGORY_ZH, marketLabel } from "@/lib/i18n";
 import { AgentActivity } from "./agent-activity";
 import { CreativeCanvas } from "./creative-canvas";
 import { FinalVideo } from "./final-video";
+import { IconAlert, IconPlus, IconStop } from "./icons";
 
 /**
  * 三栏工作台（设计文档 §14）：
  * 左：简报 · 中：创意画布（3 张场景卡）· 右：智能体动态（事件流驱动）。
+ * 失败时画布上方出现独立错误条，就地给出原因与出路。
  */
 export function Studio({ projectId, autostart }: { projectId: string; autostart: boolean }) {
+  const router = useRouter();
   const [state, setState] = useState<ProjectState | null>(null);
   const [events, setEvents] = useState<RuntimeEvent[]>([]);
   const [notFound, setNotFound] = useState(false);
@@ -66,6 +70,13 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
     void fetch(`/api/projects/${projectId}/run`, { method: "POST" });
   }, [autostart, state, projectId]);
 
+  /** 引擎不支持终态原地重跑；把简报带回首页预填，一键新建重试。 */
+  const retryWithNewProject = useCallback(() => {
+    if (!state) return;
+    sessionStorage.setItem("adpilot:retryBrief", JSON.stringify(state.brief));
+    router.push("/");
+  }, [state, router]);
+
   if (notFound) {
     return (
       <div className="grid min-h-screen place-items-center">
@@ -83,6 +94,11 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
     return <div className="grid min-h-screen place-items-center text-zinc-500">加载项目中…</div>;
   }
 
+  const failedScenes = state.scenes.filter((s) => s.status === "FAILED").map((s) => s.id);
+  const doneScenes = state.scenes
+    .filter((s) => s.status === "READY")
+    .map((s) => s.id);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
@@ -91,36 +107,68 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
           <span className="font-bold tracking-tight">AdPilot</span>
           <span className="text-zinc-600">/</span>
           <span className="text-sm text-zinc-400">
-            项目：{state.brief.productName} · {state.brief.market}
+            项目：{state.brief.productName} · {marketLabel(state.brief.market)}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2.5 text-xs">
           <StatusPill status={state.status} />
-          {state.runtime.demoMode && (
-            <span className={`rounded-full px-2.5 py-1 font-medium ${state.runtime.demoMode === "replay" ? "bg-amber-500/15 text-amber-300" : "bg-zinc-800 text-zinc-400"}`}>
-              {DEMO_MODE_ZH[state.runtime.demoMode] ?? state.runtime.demoMode}
+          {state.runtime.demoMode === "replay" && (
+            <span className="rounded-full bg-amber-500/15 px-2.5 py-1 font-medium text-amber-300">
+              回放 · 真实运行录制
             </span>
           )}
           {canStop && (
             <button
               type="button"
               onClick={() => void onStop()}
-              className="rounded-lg border border-red-500/50 px-2.5 py-1 font-medium text-red-300 hover:bg-red-500/10"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/50 px-2.5 py-1 font-medium text-red-300 hover:bg-red-500/10"
               title="停止当前任务（当前批次完成后终止，已完成内容保留）"
             >
-              ■ 停止
+              <IconStop className="size-3" />
+              停止
             </button>
           )}
           <Link href="/assets" className="rounded-lg border border-zinc-700 px-2.5 py-1 text-zinc-300 hover:border-zinc-500">
             素材库
           </Link>
-          <Link href="/" className="rounded-lg bg-indigo-500/90 px-2.5 py-1 font-medium text-white hover:bg-indigo-400">
-            ＋ 新建广告
+          <Link href="/" className="inline-flex items-center gap-1 rounded-lg bg-indigo-500/90 px-2.5 py-1 font-medium text-white hover:bg-indigo-400">
+            <IconPlus className="size-3.5" />
+            新建广告
           </Link>
         </div>
       </header>
 
       <main className="grid flex-1 grid-cols-12 items-start gap-4 p-4">
+        {state.error && (
+          <section className="col-span-12 flex flex-wrap items-start justify-between gap-x-6 gap-y-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-semibold text-red-200">
+                <IconAlert className="size-4 shrink-0" />
+                运行中止 · {ERROR_CATEGORY_ZH[state.error.category] ?? state.error.category}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-red-200/80">{state.error.message}</p>
+              {(failedScenes.length > 0 || doneScenes.length > 0) && (
+                <p className="mt-1.5 text-xs text-zinc-400">
+                  {failedScenes.length > 0 && (
+                    <span>
+                      受影响场景：<span className="text-red-200">{failedScenes.join("、")}</span>
+                    </span>
+                  )}
+                  {failedScenes.length > 0 && doneScenes.length > 0 && " · "}
+                  {doneScenes.length > 0 && <span>{doneScenes.join("、")} 已完成并保留</span>}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={retryWithNewProject}
+              className="shrink-0 rounded-lg bg-red-500 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-400"
+            >
+              复制简报，新建重试
+            </button>
+          </section>
+        )}
+
         <section className="col-span-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
           <h2 className="mb-3 text-sm font-semibold text-zinc-300">广告简报</h2>
           <BriefPanel state={state} />
@@ -132,7 +180,7 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
 
         <section className="col-span-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
           <h2 className="mb-3 text-sm font-semibold text-zinc-300">智能体动态</h2>
-          <AgentActivity events={events} />
+          <AgentActivity events={events} autoCollapse={state.status === "COMPLETED"} />
         </section>
       </main>
 
@@ -144,7 +192,7 @@ export function Studio({ projectId, autostart }: { projectId: string; autostart:
 function BriefPanel({ state }: { state: ProjectState }) {
   const rows: Array<[string, string]> = [
     ["产品", state.brief.productName],
-    ["市场", state.brief.market],
+    ["市场", marketLabel(state.brief.market)],
     ["受众", state.brief.audience],
     ["平台", state.brief.platform],
     ["时长", `${state.brief.durationSec} 秒`],
@@ -162,12 +210,6 @@ function BriefPanel({ state }: { state: ProjectState }) {
         <dt className="text-xs font-medium text-zinc-500">描述</dt>
         <dd className="text-xs leading-relaxed text-zinc-400">{state.brief.productDescription}</dd>
       </div>
-      {state.error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-2.5">
-          <p className="text-xs font-semibold text-red-300">{state.error.category}</p>
-          <p className="mt-0.5 text-xs text-red-200/80">{state.error.message}</p>
-        </div>
-      )}
     </dl>
   );
 }
