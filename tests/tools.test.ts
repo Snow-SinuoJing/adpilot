@@ -6,7 +6,7 @@ import { TEST_DATA_DIR } from "./setup";
 
 // ── pure builders & parsers ────────────────────────────────────────────────
 import { cacheKey } from "@/lib/tools/generate-video";
-import { parseMiniMaxQueryResponse, parseMiniMaxFileRetrieve, miniMaxSubmitBody } from "@/lib/providers/minimax-video-provider";
+import { parseMiniMaxQueryResponse, parseMiniMaxFileRetrieve, miniMaxSubmitBody, parseMiniMaxV2QueryResponse, miniMaxV2SubmitBody } from "@/lib/providers/minimax-video-provider";
 import { buildNormalizeArgs, buildConcatArgs } from "@/lib/tools/compose-video";
 import { clampWindow } from "@/lib/tools/segment-refine";
 import { buildFakeVideoArgs as buildFakeArgsAspect } from "@/lib/providers/fake-video-provider";
@@ -124,6 +124,30 @@ describe("MiniMax provider adapters", () => {
     expect(parseMiniMaxFileRetrieve({ file: { download_url: "https://cdn/v.mp4" } })).toBe("https://cdn/v.mp4");
     expect(() => parseMiniMaxFileRetrieve({ base_resp: { status_code: 1004, status_msg: "expired" } })).toThrow(/expired/);
     expect(() => parseMiniMaxFileRetrieve({ file: {} })).toThrow(/no download_url/);
+  });
+
+  it("maps v2 (H3) query responses correctly", () => {
+    expect(parseMiniMaxV2QueryResponse({ items: [{ status: "succeeded", content: { url: "https://cdn/v.mp4" } }] })).toEqual({
+      status: "COMPLETED",
+      videoUrl: "https://cdn/v.mp4",
+    });
+    expect(parseMiniMaxV2QueryResponse({ items: [{ status: "running" }] }).status).toBe("RUNNING");
+    expect(parseMiniMaxV2QueryResponse({ items: [{ status: "queued" }] }).status).toBe("PENDING");
+    expect(parseMiniMaxV2QueryResponse({ items: [{ status: "failed", error: { message: "boom" } }] }).error).toBe("boom");
+    expect(parseMiniMaxV2QueryResponse({ items: [] }).status).toBe("FAILED");
+  });
+
+  it("v2 submit body uses content messages and clamps duration to 5-10s", () => {
+    const body = miniMaxV2SubmitBody(
+      { prompt: "p", durationSec: 4, aspectRatio: "16:9" },
+      "MiniMax-H3-Max",
+      "data:image/jpeg;base64,xx",
+    );
+    expect(body.duration).toBe(5);
+    expect(body.resolution).toBe("768p");
+    const content = body.content as Array<{ type: string }>;
+    expect(content[0].type).toBe("text");
+    expect(content[1].type).toBe("image_url");
   });
 
   it("submit body carries model + prompt optimizer", () => {

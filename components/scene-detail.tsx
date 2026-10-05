@@ -4,7 +4,7 @@ import type { SceneState } from "@/lib/state/schema";
 import { DIMENSION_ZH } from "@/lib/i18n";
 
 /** 展开后的场景详情：意图、来源理由、生成提示词、评审问题、修复历史（设计文档 §14.2）。 */
-export function SceneDetail({ scene }: { scene: SceneState }) {
+export function SceneDetail({ scene, landscape = false }: { scene: SceneState; landscape?: boolean }) {
   return (
     <div className="space-y-3 border-t border-zinc-800 px-2.5 py-2.5 text-[11px] leading-relaxed">
       <Block label="画面意图">{scene.visualIntent}</Block>
@@ -66,7 +66,7 @@ export function SceneDetail({ scene }: { scene: SceneState }) {
                     {record.previousVideoUrl ? (
                       <video
                         src={record.previousVideoUrl}
-                        className="aspect-[9/16] w-full rounded bg-black object-cover"
+                        className={`${landscape ? "aspect-video" : "aspect-[9/16]"} w-full rounded bg-black object-cover`}
                         controls
                         muted
                         playsInline
@@ -90,7 +90,7 @@ export function SceneDetail({ scene }: { scene: SceneState }) {
                     {scene.videoUrl ? (
                       <video
                         src={scene.videoUrl}
-                        className="aspect-[9/16] w-full rounded bg-black object-cover"
+                        className={`${landscape ? "aspect-video" : "aspect-[9/16]"} w-full rounded bg-black object-cover`}
                         controls
                         muted
                         playsInline

@@ -4,6 +4,7 @@ import type { ProjectState } from "@/lib/state/schema";
 import { SceneCard } from "./scene-card";
 
 export function CreativeCanvas({ state }: { state: ProjectState }) {
+  const landscape = state.brief.aspectRatio === "16:9";
   const scenes = [...state.scenes].sort((a, b) => a.order - b.order);
 
   return (
@@ -24,7 +25,7 @@ export function CreativeCanvas({ state }: { state: ProjectState }) {
       ) : (
         <div className="grid grid-cols-3 gap-3">
           {scenes.map((scene) => (
-            <SceneCard key={scene.id} scene={scene} />
+            <SceneCard key={scene.id} scene={scene} landscape={landscape} />
           ))}
         </div>
       )}

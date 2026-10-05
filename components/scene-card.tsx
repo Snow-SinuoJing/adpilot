@@ -15,7 +15,7 @@ const STATUS_STYLES: Record<SceneState["status"], string> = {
   FAILED: "bg-red-500/15 text-red-300",
 };
 
-export function SceneCard({ scene }: { scene: SceneState }) {
+export function SceneCard({ scene, landscape = false }: { scene: SceneState; landscape?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const busy =
     scene.status === "GENERATING" ||
@@ -30,7 +30,9 @@ export function SceneCard({ scene }: { scene: SceneState }) {
         onClick={() => setExpanded((v) => !v)}
         className="w-full text-left"
       >
-        <div className="relative h-[42vh] max-h-[520px] bg-zinc-950">
+        <div
+          className={`relative bg-zinc-950 ${landscape ? "aspect-video w-full" : "h-[42vh] max-h-[520px]"}`}
+        >
           {scene.videoUrl ? (
             <video
               src={scene.videoUrl}
@@ -94,7 +96,7 @@ export function SceneCard({ scene }: { scene: SceneState }) {
         </button>
       </div>
 
-      {expanded && <SceneDetail scene={scene} />}
+      {expanded && <SceneDetail scene={scene} landscape={landscape} />}
     </div>
   );
 }

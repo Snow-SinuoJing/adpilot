@@ -33,9 +33,14 @@ function env(name: string, fallback: string): string {
 
 export class MiniMaxVideoProvider implements VideoProvider {
   readonly name = "minimax";
-  readonly model = env("MINIMAX_VIDEO_MODEL", "MiniMax-Hailuo-02");
+  readonly model = env("MINIMAX_VIDEO_MODEL", "MiniMax-H3-Max");
   private readonly baseUrl = env("MINIMAX_BASE_URL", "https://api.minimaxi.com");
   private readonly apiKey = process.env.MINIMAX_API_KEY?.trim() ?? "";
+
+  /** H3 系列走新一代 /v2 接口（content 消息体 + resolution/duration），其余走 /v1。 */
+  private isV2(): boolean {
+    return /H3|h3/i.test(this.model) || process.env.MINIMAX_VIDEO_API === "v2";
+  }
 
   private headers(): Record<string, string> {
     return {
@@ -45,16 +50,33 @@ export class MiniMaxVideoProvider implements VideoProvider {
   }
 
   async submit(input: VideoSubmitInput): Promise<{ jobId: string }> {
+    // 平台不支持 aspect 参数：用与目标画幅一致的首帧锚定方向（实测可靠）
+    const firstFrame = await verticalFirstFrameDataUrl(input.prompt, input.aspectRatio ?? "9:16");
+
+    if (this.isV2()) {
+      const body = miniMaxV2SubmitBody(input, this.model, firstFrame);
+      const response = await fetch(`${this.baseUrl}/v2/video_generation`, {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000),
+      });
+      const parsed = (await response.json()) as { task_id?: string; error?: { message?: string } };
+      if (!response.ok || !parsed.task_id) {
+        throw new Error(
+          `minimax v2 submit failed: HTTP ${response.status} ${parsed.error?.message ?? "unknown error"}`,
+        );
+      }
+      return { jobId: parsed.task_id };
+    }
+
     const body: Record<string, unknown> = {
       model: this.model,
       prompt: input.prompt,
       prompt_optimizer: true,
     };
-    // The platform ignores aspect_ratio params for t2v; a 9:16 first frame
-    // is the reliable way to force vertical output (verified against the
-    // live API). Adapter-level concern — the Agent layer just asks for 9:16.
     if (process.env.MINIMAX_VERTICAL_FIRST_FRAME !== "0") {
-      body.first_frame_image = await verticalFirstFrameDataUrl(input.prompt, input.aspectRatio ?? "9:16");
+      body.first_frame_image = firstFrame;
     }
     const response = await fetch(`${this.baseUrl}/v1/video_generation`, {
       method: "POST",
@@ -76,6 +98,14 @@ export class MiniMaxVideoProvider implements VideoProvider {
   }
 
   async getStatus(jobId: string): Promise<VideoJobResult> {
+    if (this.isV2()) {
+      const response = await fetch(
+        `${this.baseUrl}/v2/query/video_generation?task_id=${encodeURIComponent(jobId)}`,
+        { headers: this.headers(), signal: AbortSignal.timeout(20_000) },
+      );
+      return parseMiniMaxV2QueryResponse(await response.json());
+    }
+
     const response = await fetch(
       `${this.baseUrl}/v1/query/video_generation?task_id=${encodeURIComponent(jobId)}`,
       { headers: this.headers(), signal: AbortSignal.timeout(20_000) },
@@ -101,6 +131,43 @@ export class MiniMaxVideoProvider implements VideoProvider {
     const parsed = parseMiniMaxFileRetrieve(await response.json());
     return parsed;
   }
+}
+
+/** Pure: /v2 submit body（content 消息体，duration 限 5–10 秒，分辨率 480P/768P）。 */
+export function miniMaxV2SubmitBody(
+  input: VideoSubmitInput,
+  model: string,
+  firstFrameDataUrl: string,
+): Record<string, unknown> {
+  const duration = Math.min(Math.max(Math.round(input.durationSec), 5), 10);
+  return {
+    model,
+    duration,
+    resolution: process.env.MINIMAX_VIDEO_RESOLUTION?.trim() || "768p",
+    content: [
+      { type: "text", text: input.prompt },
+      { type: "image_url", image_url: { url: firstFrameDataUrl } },
+    ],
+  };
+}
+
+/** Pure: /v2 query 响应解析（items[0].status + content.url）。 */
+export function parseMiniMaxV2QueryResponse(raw: unknown): VideoJobResult {
+  const body = raw as {
+    items?: Array<{ status?: string; content?: { url?: string }; error?: { message?: string } }>;
+  };
+  const item = body.items?.[0];
+  if (!item) return { status: "FAILED", error: "v2 query returned no items" };
+  if (item.status === "succeeded" || item.status === "Success") {
+    const url = item.content?.url;
+    if (!url) return { status: "FAILED", error: "v2 succeeded without content.url" };
+    return { status: "COMPLETED", videoUrl: url };
+  }
+  if (item.status === "failed" || item.status === "Fail") {
+    return { status: "FAILED", error: item.error?.message ?? "generation failed" };
+  }
+  if (item.status === "running" || item.status === "Processing") return { status: "RUNNING" };
+  return { status: "PENDING" };
 }
 
 // Pure helpers exported for unit tests (no network).

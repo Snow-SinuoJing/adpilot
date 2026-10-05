@@ -3,14 +3,15 @@
 import type { ProjectState } from "@/lib/state/schema";
 
 export function FinalVideo({ state }: { state: ProjectState }) {
+  const landscape = state.brief.aspectRatio === "16:9";
   return (
     <footer className="border-t border-zinc-800 px-4 py-3">
       <div className="flex items-center gap-5">
-        <div className="w-40 shrink-0">
+        <div className={landscape ? "w-72 shrink-0" : "w-40 shrink-0"}>
           <video
             key={state.finalVideoUrl}
             src={state.finalVideoUrl}
-            className="aspect-[9/16] w-40 rounded-xl border border-zinc-800 bg-black object-cover"
+            className={`${landscape ? "aspect-video w-72" : "aspect-[9/16] w-40"} rounded-xl border border-zinc-800 bg-black object-cover`}
             controls
             playsInline
             preload={state.finalVideoUrl ? "metadata" : "none"}
@@ -20,7 +21,9 @@ export function FinalVideo({ state }: { state: ProjectState }) {
           <h2 className="text-sm font-semibold text-zinc-300">最终成片</h2>
           {state.finalVideoUrl ? (
             <>
-              <p className="text-xs text-emerald-400">已就绪 — {state.brief.durationSec} 秒竖版 MP4</p>
+              <p className="text-xs text-emerald-400">
+                已就绪 — {state.brief.durationSec} 秒{landscape ? "横版" : "竖版"} MP4
+              </p>
               <a
                 href={state.finalVideoUrl}
                 download={`${state.brief.productName.toLowerCase().replace(/\s+/g, "-")}.mp4`}

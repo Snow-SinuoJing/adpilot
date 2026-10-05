@@ -123,7 +123,7 @@ async function submitWithRetry(
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const { jobId } = await provider.submit({ ...input, aspectRatio: "9:16" });
+      const { jobId } = await provider.submit(input);
       return jobId;
     } catch (error) {
       lastError = error;

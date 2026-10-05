@@ -148,6 +148,7 @@ function BriefPanel({ state }: { state: ProjectState }) {
     ["受众", state.brief.audience],
     ["平台", state.brief.platform],
     ["时长", `${state.brief.durationSec} 秒`],
+    ["画幅", state.brief.aspectRatio === "16:9" ? "横屏 16:9" : "竖屏 9:16"],
   ];
   return (
     <dl className="space-y-2.5 text-sm">
