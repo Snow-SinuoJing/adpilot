@@ -24,6 +24,8 @@
   .brandbar nav { margin-left:auto; display:flex; gap:24px; align-items:center; font-size:12px; font-weight:700; letter-spacing:.16em; }
   .brandbar nav a { color:var(--ink); text-decoration:none; padding-bottom:2px; border-bottom:2px solid transparent; }
   .brandbar nav a.here { border-bottom-color:var(--orange); color:var(--orange); }
+  .brandbar nav a.navcta { background:var(--ink); color:var(--paper); padding:9px 16px; border-bottom:0; transition:background .15s; }
+  .brandbar nav a.navcta:hover { background:var(--orange); color:var(--paper); }
   .brandbar nav a:hover { border-bottom-color:var(--orange); color:var(--orange); }
 
   .hero { padding:38px 40px 30px; display:grid; grid-template-columns:1fr auto; align-items:end; gap:30px; border-bottom:3px solid var(--ink); }
@@ -72,6 +74,12 @@
   .card .ops .sub a:hover { color:var(--orange); }
   .card .segs { font-family:var(--mono); font-size:10px; letter-spacing:.14em; color:var(--orange); }
 
+  .card.drop .ch { display:block; width:58px; height:58px; margin:0 auto 8px; }
+  .card.drop .ch .mag { transform-box:fill-box; animation:scan 2.6s ease-in-out infinite; }
+  @keyframes scan { 0%,100% { transform:translateX(-3px); } 50% { transform:translateX(3px); } }
+  .card.drop .ch .eyes { transform-box:fill-box; transform-origin:center; animation:blink 4.4s infinite; }
+  @keyframes blink { 0%,91%,100% { transform:scaleY(1); } 94%,97% { transform:scaleY(.12); } }
+  .card.drop:hover .ch .mag { animation-duration:1s; }
   .card.drop { border:1.5px dashed rgba(20,18,16,.4); background:transparent; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:300px; cursor:pointer; transition:border-color .15s, background .15s; }
   .card.drop:hover { border-color:var(--orange); background:rgba(255,77,0,.04); }
   .card.drop .plus { font-size:30px; font-weight:900; color:var(--orange); }
@@ -92,7 +100,7 @@
     <a href="07-home.html">开机</a>
     <a class="here" href="08-assets.html">道具间</a>
     <a href="07-home.html#archive">往期广告片</a>
-    <a class="cta" href="07-home.html">＋ 新广告开机</a>
+    <a class="navcta" href="07-home.html">＋ 新广告开机</a>
   </nav>
 </header>
 
@@ -121,7 +129,7 @@
 
   <div class="grid">
     <div class="card drop">
-      <span class="plus">＋</span>
+      <svg class="ch ch-prop" viewBox="0 0 48 48"><g class="head"><circle cx="21" cy="28" r="12" fill="#fff" stroke="#141210" stroke-width="2"/><path d="M9.5 20h23c-1-4.5-5.5-7-11.5-7s-10.5 2.5-11.5 7z" fill="#141210"/><path d="M8 20.5h26" stroke="#141210" stroke-width="2" stroke-linecap="round"/><g class="eyes"><circle cx="17" cy="27.5" r="1.7" fill="#141210"/><circle cx="25.5" cy="27.5" r="1.7" fill="#141210"/></g><path d="M18.5 33.5c1.3 1 3.2 1 4.5 0" fill="none" stroke="#141210" stroke-width="2" stroke-linecap="round"/></g><g class="mag"><circle cx="37" cy="28" r="5.5" fill="rgba(255,77,0,.16)" stroke="#141210" stroke-width="2"/><line x1="41" y1="32" x2="46" y2="37" stroke="#141210" stroke-width="2.5" stroke-linecap="round"/></g></svg>
       <p>上传视频素材</p>
       <small>拖入或点击选择 · 长素材自动做<br>镜头检测 → 切片 → 视觉描述</small>
     </div>

@@ -37,6 +37,26 @@
   .demo:hover { background:var(--orange); }
   .demo-note { margin-top:10px; font-size:11px; color:var(--grey); letter-spacing:.06em; }
 
+  /* 片场开机小剧场：AI 摄影师运镜、场记板开拍、收音杆轻摆、咖啡冒热气 */
+  .setscene { display:block; width:100%; max-width:330px; margin:0 auto 14px; }
+  .setscene .robot, .setscene .pupil, .setscene .arm2, .setscene .mic, .setscene .steam path { transform-box:fill-box; }
+  .setscene .robot { animation:s-pan 5s ease-in-out infinite; }
+  @keyframes s-pan { 0%,100% { transform:translateX(-6px); } 50% { transform:translateX(6px); } }
+  .setscene .pupil { animation:s-look 2.2s ease-in-out infinite; }
+  @keyframes s-look { 0%,100% { transform:translateX(-2.5px); } 50% { transform:translateX(2.5px); } }
+  .setscene .arm2 { transform-origin:6% 100%; animation:s-clap 3.6s cubic-bezier(.6,0,.3,1) infinite; }
+  @keyframes s-clap { 0%,60% { transform:rotate(-15deg); } 68% { transform:rotate(2deg); } 74%,100% { transform:rotate(0); } }
+  .setscene .mic { transform-origin:88% 4%; animation:s-mic 3.2s ease-in-out infinite; }
+  @keyframes s-mic { 0%,100% { transform:rotate(-4deg); } 50% { transform:rotate(5deg); } }
+  .setscene .steam path { animation:s-steam 2.8s ease-in-out infinite; }
+  .setscene .steam path:nth-child(2) { animation-delay:1.4s; }
+  @keyframes s-steam { 0% { transform:translateY(2px); opacity:0; } 30% { opacity:.5; } 100% { transform:translateY(-8px); opacity:0; } }
+  .setscene .rec { font-family:var(--mono); font-size:11px; fill:var(--orange); letter-spacing:.2em; animation:s-blink 1.6s steps(2) infinite; }
+  @keyframes s-blink { 50% { opacity:.15; } }
+  .slot .plus { display:inline-block; transition:transform .25s ease; }
+  .slot:hover .plus { transform:rotate(90deg); }
+
+
   .wrap { padding:0 40px 70px; }
   /* 立项单 */
   .sheet { border:3px solid var(--ink); background:rgba(255,255,255,.5); }
@@ -108,7 +128,7 @@
     <a class="here" href="07-home.html">开机</a>
     <a href="08-assets.html">道具间</a>
     <a href="#archive">往期广告片</a>
-    <a class="cta" href="07-home.html">＋ 新广告开机</a>
+    <a class="navcta" href="07-home.html">＋ 新广告开机</a>
   </nav>
 </header>
 
@@ -118,6 +138,40 @@
     <h1>一支新广告，<br>今天<em>开机</em>。</h1>
     <p class="sub">发完这张<b>通告单</b>，<b>智能体剧组</b>接手余下全部：定三幕叙事、检索素材或转 AI 生成、逐帧质检、不合格只重拍那一幕——最后在这里交付一支竖版成片。</p>
   </div>
+<svg class="setscene" viewBox="0 0 320 240" aria-hidden="true">
+      <text class="rec" x="16" y="26">● REC</text>
+      <polygon points="176,150 306,98 306,196" fill="rgba(232,163,61,.10)"/>
+      <line x1="14" y1="212" x2="306" y2="212" stroke="#141210" stroke-width="2.5" stroke-linecap="round"/>
+      <g class="robot">
+        <line x1="160" y1="185" x2="132" y2="212" stroke="#141210" stroke-width="3" stroke-linecap="round"/>
+        <line x1="160" y1="185" x2="188" y2="212" stroke="#141210" stroke-width="3" stroke-linecap="round"/>
+        <line x1="160" y1="185" x2="160" y2="212" stroke="#141210" stroke-width="3" stroke-linecap="round"/>
+        <rect x="149" y="177" width="22" height="10" rx="3" fill="#141210"/>
+        <rect x="128" y="134" width="64" height="46" rx="9" fill="#141210"/>
+        <rect x="135" y="141" width="50" height="32" rx="6" fill="#f2efe7"/>
+        <circle cx="160" cy="157" r="11" fill="none" stroke="#141210" stroke-width="2.5"/>
+        <circle class="pupil" cx="160" cy="157" r="5" fill="#ff4d00"/>
+        <rect x="158" y="118" width="14" height="9" rx="2" fill="#141210"/>
+        <line x1="165" y1="110" x2="165" y2="118" stroke="#141210" stroke-width="2"/>
+        <circle class="rec" cx="165" cy="107" r="2.5"/>
+        <rect x="196" y="144" width="6" height="13" rx="2" fill="#141210"/>
+      </g>
+      <g>
+        <g class="arm2"><rect x="34" y="168" width="56" height="13" rx="2" fill="#141210"/><path d="M44 168l9 13M58 168l9 13M72 168l9 13" stroke="#f2efe7" stroke-width="4"/></g>
+        <rect x="34" y="181" width="56" height="13" rx="2" fill="#141210"/>
+        <path d="M44 181l9 13M58 181l9 13M72 181l9 13" stroke="#f2efe7" stroke-width="4"/>
+      </g>
+      <g class="mic">
+        <line x1="292" y1="8" x2="262" y2="48" stroke="#141210" stroke-width="2.5" stroke-linecap="round"/>
+        <rect x="248" y="44" width="20" height="13" rx="6.5" fill="#141210" transform="rotate(33 258 50)"/>
+      </g>
+      <rect x="250" y="190" width="20" height="19" rx="2" fill="#fff" stroke="#141210" stroke-width="2"/>
+      <path d="M270 194h5a4.5 4.5 0 0 1 0 9h-5" fill="none" stroke="#141210" stroke-width="2"/>
+      <g class="steam">
+        <path d="M256 184c-2-3 2-5 0-9" fill="none" stroke="#8d8779" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M264 184c-2-3 2-5 0-9" fill="none" stroke="#8d8779" stroke-width="1.8" stroke-linecap="round"/>
+      </g>
+    </svg>
   <div class="side">
     <a class="demo" href="#">先看一支示例片 →</a>
     <p class="demo-note">约 40 秒 · 含一次真实的自修复</p>
