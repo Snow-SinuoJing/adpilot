@@ -59,6 +59,14 @@ export function planSceneDurations(
       }
       diff = round2(total - dur.reduce((a, b) => a + b, 0));
     }
+
+    // 全部触底仍超（配音过长）：按比例硬压缩到总时长，超出的语音由变速补偿
+    const sum = round2(dur.reduce((a, b) => a + b, 0));
+    if (sum > total) {
+      const factor = total / sum;
+      for (let i = 0; i < dur.length; i++) dur[i] = round2(Math.max(1.5, dur[i] * factor));
+    }
+
     return dur;
   }
 
@@ -87,6 +95,8 @@ export function buildNormalizeArgs(input: {
   outPath: string;
   aspectRatio?: "9:16" | "16:9";
   srcDur?: number;
+  /** 配音变速系数（>1 加速）：配音过长时压缩语音以贴合总时长 */
+  voiceTempo?: number;
 }): string[] {
   const { w, h } = targetDims(input.aspectRatio);
 
@@ -131,7 +141,7 @@ export function buildNormalizeArgs(input: {
     "-filter_complex",
     `[0:v]${videoGraph}[v]` +
       (input.audioPath
-        ? `;[1:a]aresample=44100,apad,atrim=duration=${input.durationSec.toFixed(2)}[a]`
+        ? `;[1:a]${input.voiceTempo && input.voiceTempo > 1.001 ? `atempo=${input.voiceTempo.toFixed(3)},` : ""}aresample=44100,apad,atrim=duration=${input.durationSec.toFixed(2)}[a]`
         : `;anullsrc=r=44100:cl=mono,atrim=duration=${input.durationSec.toFixed(2)}[a]`),
     "-map", "[v]",
     "-map", "[a]",
@@ -224,6 +234,10 @@ export async function composeFinalVideo(
         outPath: segment,
         aspectRatio: state.brief.aspectRatio,
         srcDur: srcDurs[i],
+        voiceTempo:
+          voiceDurs[i] && durations[i] > 0.5
+            ? Math.min(1.45, Math.max(1, (voiceDurs[i] as number) / (durations[i] - 0.15)))
+            : 1,
       }),
     );
     segments.push(segment);

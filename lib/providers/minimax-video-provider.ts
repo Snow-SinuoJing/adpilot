@@ -82,6 +82,7 @@ export class MiniMaxVideoProvider implements VideoProvider {
       model: this.model,
       prompt: input.prompt,
       prompt_optimizer: true,
+      ratio: input.aspectRatio ?? "9:16",
     };
     if (process.env.MINIMAX_VERTICAL_FIRST_FRAME !== "0") {
       body.first_frame_image = firstFrame;
@@ -158,6 +159,8 @@ export function miniMaxV2SubmitBody(
     model,
     duration,
     resolution: process.env.MINIMAX_VIDEO_RESOLUTION?.trim() || "768p",
+    // t2va（纯文本）场景 MiniMax 强制要求显式 ratio（不接受 adaptive 缺省）
+    ratio: input.aspectRatio ?? "9:16",
     first_frame_image: firstFrameDataUrl,
     content,
   };

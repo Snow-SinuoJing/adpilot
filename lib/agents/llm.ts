@@ -44,6 +44,26 @@ export function isMockMode(): boolean {
   return llmConfig().mode === "mock";
 }
 
+// ─── 硬超时闸门：任何一层（SDK/HTTP）挂死都在此被切断，绝不拖垮整场拍摄 ─────
+
+const TEXT_TIMEOUT_MS = 150_000; // 文本决策：策略生成为长输出任务，正常可到 60-90s，150s 兜住合法慢调用
+const VISION_TIMEOUT_MS = 150_000; // 视觉/视频大请求：base64 大 payload 需要更久
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} 超时（${Math.round(ms / 1000)}s 无响应）——服务端瞬时异常，重试或稍后再试即可`)),
+      ms,
+    );
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 // ─── shared helpers ──────────────────────────────────────────────────────────
 
 function schemaInstruction(schema: z.ZodType): string {
@@ -69,8 +89,8 @@ function client(config: LlmConfig): OpenAI {
     sharedClient = new OpenAI({
       baseURL: config.baseUrl,
       apiKey: config.apiKey,
-      timeout: 90_000,
-      maxRetries: 1,
+      timeout: 150_000, // 与外层硬超时对齐：策略长输出可合法跑到 90s+
+      maxRetries: 0,
     });
   }
   return sharedClient;
@@ -135,7 +155,12 @@ export interface StructuredRunOptions<T> {
   system: string;
   user: string;
   schema: z.ZodType<T>;
+  /** 覆盖默认文本模型（降级链会自动追加已购的备用模型） */
+  model?: string;
 }
+
+/** 文本降级链：主模型（资源包/赠送包覆盖）挂起或限流时，切另一个已购模型的文本模式。 */
+const TEXT_FALLBACK_MODELS = ["glm-4.6v-flashx"];
 
 /** Run one structured-output agent turn. Retries once on schema/model
  *  failure (design doc §18.2). Throws a MODEL error otherwise. */
@@ -145,22 +170,29 @@ export async function runStructured<T>(opts: StructuredRunOptions<T>): Promise<T
     throw new Error("runStructured called in mock mode — agents must handle mock themselves");
   }
 
+  const primary = opts.model ?? config.model;
+  const models = Array.from(new Set([primary, ...TEXT_FALLBACK_MODELS]));
   let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      if (sdkUsable !== false) {
-        try {
-          return await runViaSdk(config, opts);
-        } catch (sdkError) {
-          sdkUsable = false;
-          lastError = sdkError;
-          console.warn(`[llm] Agents SDK path failed, falling back to direct client:`, sdkError);
+
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (model === primary && sdkUsable !== false) {
+          try {
+            return await withTimeout(runViaSdk(config, opts), TEXT_TIMEOUT_MS, "Agents SDK");
+          } catch (sdkError) {
+            sdkUsable = false;
+            lastError = sdkError;
+            console.warn(`[llm] Agents SDK path failed, falling back to direct client:`, sdkError);
+          }
         }
+        return await withTimeout(runViaClient(config, { ...opts, model }), TEXT_TIMEOUT_MS, "model call");
+      } catch (error) {
+        lastError = error;
+        if (attempt === 0) await new Promise((r) => setTimeout(r, 1500)); // 退避后再试，避开瞬时抖动
       }
-      return await runViaClient(config, opts);
-    } catch (error) {
-      lastError = error;
     }
+    console.warn(`[llm] ${model} 连续失败，切换下一个文本模型:`, String(lastError).slice(0, 120));
   }
   throw new Error(`model call failed after retry: ${String(lastError)}`);
 }
@@ -197,11 +229,12 @@ export async function runVision<T>(opts: {
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const response = await request(attempt === 0);
+      const response = await withTimeout(request(attempt === 0), VISION_TIMEOUT_MS, "vision model call");
       const raw = response.choices[0]?.message?.content ?? "";
       return opts.schema.parse(extractJson(raw));
     } catch (error) {
       lastError = error;
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
     }
   }
   throw new Error(`vision model call failed after retry: ${String(lastError)}`);

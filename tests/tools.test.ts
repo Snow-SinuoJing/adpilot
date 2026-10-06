@@ -77,10 +77,12 @@ describe("audio-driven duration rebalancing (用户反馈 #2)", () => {
     expect(planSceneDurations([4, 6, 5], [3, 4, 4], 15).reduce((a, b) => a + b, 0)).toBeCloseTo(15, 1);
   });
 
-  it("never shrinks below a scene's voice floor", () => {
+  it("enforces the brief total when voices overflow (语音以变速补偿)", () => {
     const dur = planSceneDurations([3, 6, 6], [7.5, 7.5, 7.5], 15);
-    // 总需求 24 远超 15：全触底时宁超勿切语音
-    for (const d of dur) expect(d).toBeGreaterThanOrEqual(7.5);
+    // 总需求 24 远超 15：硬压缩到总时长（超出的语音由 compose 阶段 atempo 变速补偿）
+    const sum = dur.reduce((a, b) => a + b, 0);
+    expect(sum).toBeLessThanOrEqual(15.01);
+    for (const d of dur) expect(d).toBeGreaterThanOrEqual(1.5);
   });
 });
 
